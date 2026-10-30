@@ -1,0 +1,37 @@
+.skeleton {
+  display: block;
+  /* 단색 두 개를 오가는 펄스 (그라데이션 shimmer 대신) */
+  background: var(--color-skeleton);
+  border-radius: var(--radius-sm);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.circle {
+  border-radius: 50%;
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.spinner {
+  display: inline-block;
+  border: 3px solid var(--color-primary-soft);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes pulse {
+  50% {
+    background-color: var(--color-skeleton-shine);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

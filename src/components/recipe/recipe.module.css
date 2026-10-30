@@ -1,0 +1,363 @@
+/* 레시피 도메인 컴포넌트 공용 스타일 */
+
+/* ── Meta ─────────────────────────────── */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.meta li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ── Grid ─────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-5);
+}
+
+@media (max-width: 639px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+/* ── Card ─────────────────────────────── */
+.cardLink {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.cardLink:focus-visible {
+  outline: none;
+}
+
+.cardBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.cardTitle {
+  font-size: var(--font-size-lg);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cardDescription {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-xs);
+}
+
+.channel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Section (상세 페이지 블록) ─────────── */
+.sectionTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-xl);
+}
+
+.sectionCount {
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── Ingredients ──────────────────────── */
+.ingredientList li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.ingredientList li:last-child {
+  border-bottom: 0;
+}
+
+.ingredientName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-medium);
+}
+
+.ingredientAmount {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── Steps ────────────────────────────── */
+.stepList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  counter-reset: step;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.stepNumber {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-text);
+  font-weight: var(--font-weight-bold);
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-top: 6px;
+  line-height: var(--line-height-relaxed);
+}
+
+.timestamp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+a.timestamp:hover {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-text);
+}
+
+/* ── Youtube embed ────────────────────── */
+.embed {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: #000;
+  aspect-ratio: 16 / 9;
+}
+
+.embedButton {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.embedThumb {
+  height: 100%;
+}
+
+.embed iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* ── Match meter ──────────────────────── */
+.match {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.matchHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.matchValue {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--match-color);
+}
+
+.matchTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-sunken);
+}
+
+.matchFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--match-color);
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
+.matchHigh {
+  --match-color: var(--color-success);
+}
+.matchMid {
+  --match-color: var(--color-warning);
+}
+.matchLow {
+  --match-color: var(--color-text-subtle);
+}
+
+/* ── Recommendation card ──────────────── */
+.recCard {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+}
+
+.recThumbLink {
+  display: block;
+  height: 100%;
+}
+
+/* RecipeThumbnail 의 16:9 를 덮어써 카드 높이에 맞춘다 (모듈 로드 순서와 무관하게 이기도록 2단 선택자) */
+.recCard .recThumb {
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  aspect-ratio: auto;
+}
+
+.recBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.recTitleRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.recTitle {
+  font-size: var(--font-size-lg);
+}
+
+.recTitle a:hover {
+  color: var(--color-primary);
+}
+
+.recGroups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.recGroupLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+}
+
+/* ── AI suggestion card (recBody·recGroups 를 함께 쓴다) ── */
+.aiTitleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.aiDescription {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.aiActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.recComplete {
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 767px) {
+  .recCard {
+    grid-template-columns: 1fr;
+  }
+  .recCard .recThumb {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 21 / 9; /* 모바일에서는 썸네일을 낮게 해 매칭 정보가 첫 화면에 보이게 */
+  }
+  .recBody {
+    padding: var(--space-4);
+  }
+}
+
+@media (max-width: 479px) {
+  .recGroups {
+    grid-template-columns: 1fr;
+  }
+}

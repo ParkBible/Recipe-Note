@@ -1,0 +1,94 @@
+.thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--color-surface-sunken);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 썸네일이 없거나 로드 실패 시: 디자인 시스템 표지처럼 단색 블록 + 재료 알약 무늬 */
+.placeholder {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--color-surface);
+  container-type: inline-size; /* 알약 무늬를 썸네일 폭에 비례(cqw)시키기 위해 */
+}
+
+.toneBrand {
+  background: var(--color-primary);
+}
+.toneDeep {
+  background: var(--color-primary-soft-text);
+}
+.toneInk {
+  background: var(--color-text);
+}
+.toneAmber {
+  background: var(--color-warning);
+}
+
+/* 2줄 알약 묶음 (표지의 재료 칩 패턴). 폭 비율은 표지와 같은 64·48 / 40·64 */
+.pills {
+  position: absolute;
+  top: 8cqw;
+  left: 7cqw;
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2cqw;
+}
+
+.pills span {
+  display: block;
+  height: 6cqw;
+  border-radius: var(--radius-full);
+  background: currentColor;
+}
+
+.pills span:nth-child(1) { width: 16cqw; }
+.pills span:nth-child(2) { width: 12cqw; }
+.pills span:nth-child(3) { width: 10cqw; }
+.pills span:nth-child(4) { width: 16cqw; }
+
+.placeholderLabel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+}
+
+.play {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.playIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: transform var(--duration-fast) ease;
+}
+
+.playLarge .playIcon {
+  width: 72px;
+  height: 52px;
+  border-radius: var(--radius-lg);
+}

@@ -1,0 +1,292 @@
+/* 냉장고 본체: 흰 단색 몸체 + 굵은 외곽선 */
+.fridge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-xl);
+  min-width: 0;
+}
+
+/* ── 냉동칸: 초록 블록 + 일러스트 ─────── */
+.freezer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.freezerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.freezerTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.count {
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-text);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.illustration {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: -1px; /* 선반이 블록 바닥에 딱 붙게 */
+}
+
+.illoShelf,
+.illoCream {
+  fill: var(--color-illo-cream);
+}
+.illoRed {
+  fill: var(--color-illo-red);
+}
+.illoOrange {
+  fill: var(--color-illo-orange);
+}
+.illoYellow {
+  fill: var(--color-illo-yellow);
+}
+.illoLeaf {
+  fill: var(--color-illo-leaf);
+}
+
+/* 음식은 바닥(선반)을 축으로 흔들린다. 냉동칸에 마우스를 올리면 왼쪽부터 차례로 */
+.food {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.freezer:hover .food {
+  animation: wiggle 0.7s var(--ease-out) both;
+}
+
+@keyframes wiggle {
+  20% {
+    transform: rotate(-7deg) translateY(-3px);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+  75% {
+    transform: rotate(-2deg);
+  }
+}
+
+/* ── 냉장칸: 선반 위 재료 칩 ───────────── */
+.compartment {
+  --shelf: 56px;
+  position: relative;
+  min-height: calc(var(--shelf) * 4);
+  padding: 0 calc(var(--space-6) + 6px) 0 var(--space-4);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-surface-muted);
+  /* 선반선: 하드 스톱이라 실제로는 2px 단색 줄이 반복된다 */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 calc(var(--shelf) - 2px),
+    var(--color-border-strong) calc(var(--shelf) - 2px) var(--shelf)
+  );
+}
+
+.shelves {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-2);
+}
+
+.shelves li {
+  display: flex;
+  align-items: center;
+  height: var(--shelf);
+  padding-bottom: 2px; /* 칩이 선반선 위에 놓이도록 */
+}
+
+/* 선반 위 재료: 평소엔 연한 초록, 꼭 넣을 재료는 진한 초록 + 채운 별 */
+.item {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 36px;
+  padding-right: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-soft-text);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.itemOn {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.itemToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-full) 0 0 var(--radius-full);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.itemToggle:focus-visible,
+.itemRemove:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
+.itemLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.star {
+  flex: none;
+  opacity: 0.4;
+  transition: opacity var(--duration-fast) ease, transform var(--duration-fast) var(--ease-out);
+}
+
+.itemToggle:hover .star {
+  opacity: 0.8;
+}
+
+.itemOn .star {
+  opacity: 1;
+  fill: currentColor;
+  transform: scale(1.1);
+}
+
+.itemRemove {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.itemRemove:hover {
+  opacity: 1;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.mustHint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.emptyShelf {
+  display: flex;
+  align-items: center;
+  height: var(--shelf);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* 문 손잡이 */
+.handle {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-3);
+  width: 6px;
+  height: 72px;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+}
+
+/* ── 야채칸: 넓은 입력 영역 ────────────── */
+.drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+/* 서랍 손잡이 */
+.drawer::before {
+  content: '';
+  align-self: center;
+  width: 64px;
+  height: 6px;
+  margin-bottom: var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+}
+
+.drawerLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.drawerRow {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.drawerInput {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-lg);
+  transition: border-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
+}
+
+.drawerInput::placeholder {
+  color: var(--color-text-subtle);
+}
+
+.drawerInput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-focus-ring);
+}
+
+.drawerHint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
