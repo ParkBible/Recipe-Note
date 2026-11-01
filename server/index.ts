@@ -1,107 +1,37 @@
 import { existsSync } from 'node:fs';
 import { serve } from '@hono/node-server';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
-import { z } from 'zod';
-import { parseYoutubeVideoId } from '../src/lib/youtube';
-import * as db from './db';
-import { HttpError } from './errors';
-import { suggestRecipes } from './aiRecommend';
-import { MAX_TEXT_LENGTH, extractRecipe, extractRecipeFromText } from './extract';
+import { app as api } from './app';
+import { authEnabled, missingAuthEnv } from './auth';
 import { hasLlmKey } from './llm';
-import { recommend } from './recommend';
-import { parseDraft } from './validate';
+
+/**
+ * 로컬 실행용 Node 서버. 개발 중엔 API 만 띄우고 Vite 가 /api 를 여기로 넘긴다.
+ * dist/ 가 있으면(npm run build 후 npm start) 화면도 함께 내보내 서버 하나로 동작한다.
+ */
 
 if (existsSync('.env')) process.loadEnvFile('.env');
 
-const app = new Hono().basePath('/api');
+const server = new Hono();
+server.route('/', api);
+// 하위 앱의 notFound 는 route() 로 붙이면 쓰이지 않는다. 없는 /api 경로가 아래 index.html 로 빠지지 않게 막는다
+server.all('/api/*', (c) => c.json({ error: '없는 API 경로예요.' }, 404));
+if (existsSync('dist/index.html')) {
+  server.use('/*', serveStatic({ root: './dist' }));
+  // 클라이언트 라우팅(/recipes/:id 등)은 index.html 로
+  server.get('*', serveStatic({ path: './dist/index.html' }));
+}
 
-const readJson = async (c: { req: { json: () => Promise<unknown> } }) => {
-  try {
-    return await c.req.json();
-  } catch {
-    throw new HttpError(400, '요청 본문이 올바른 JSON 이 아니에요.');
-  }
-};
-
-app.get('/health', (c) => c.json({ ok: true, hasLlmKey: hasLlmKey() }));
-
-app.get('/recipes', (c) => c.json(db.listRecipes(c.req.query('q'))));
-
-app.get('/recipes/:id', (c) => {
-  const recipe = db.getRecipe(c.req.param('id'));
-  return recipe ? c.json(recipe) : c.json({ error: '레시피를 찾을 수 없어요.' }, 404);
-});
-
-app.post('/recipes', async (c) => c.json(db.insertRecipe(parseDraft(await readJson(c))), 201));
-
-app.put('/recipes/:id', async (c) => {
-  const recipe = db.updateRecipe(c.req.param('id'), parseDraft(await readJson(c)));
-  return recipe ? c.json(recipe) : c.json({ error: '레시피를 찾을 수 없어요.' }, 404);
-});
-
-app.delete('/recipes/:id', (c) =>
-  db.deleteRecipe(c.req.param('id')) ? c.body(null, 204) : c.json({ error: '레시피를 찾을 수 없어요.' }, 404),
-);
-
-app.post('/extract', async (c) => {
-  const { url } = z.object({ url: z.string() }).catch({ url: '' }).parse(await readJson(c));
-  const videoId = parseYoutubeVideoId(url);
-  if (!videoId) throw new HttpError(400, '유튜브 영상 링크를 확인해 주세요.');
-  return c.json(await extractRecipe(videoId));
-});
-
-// 자유 형식 글 → 정형 레시피. 길이를 묶어 LLM 비용을 제한한다
-app.post('/extract/text', async (c) => {
-  const { text } = z.object({ text: z.string() }).catch({ text: '' }).parse(await readJson(c));
-  const trimmed = text.trim();
-  if (trimmed.length < 10) throw new HttpError(400, '레시피 내용을 조금 더 자세히 적어 주세요.');
-  if (trimmed.length > MAX_TEXT_LENGTH) {
-    throw new HttpError(400, `글이 너무 길어요. ${MAX_TEXT_LENGTH.toLocaleString()}자 이내로 줄여 주세요.`);
-  }
-  return c.json(await extractRecipeFromText(trimmed));
-});
-
-const cleanList =(list: string[]) => {
-  const out = [...new Set(list.map((s) => s.trim()).filter(Boolean))];
-  if (out.length > 60 || out.some((s) => s.length > 30)) {
-    throw new HttpError(400, '재료는 60개까지, 각 30자 이내로 입력해 주세요.');
-  }
-  return out;
-};
-
-/** { ingredients, mustUse? }. mustUse 는 꼭 넣을 재료로, 전부 들어간 요리만 추천한다 */
-const readFridge = async (c: Parameters<typeof readJson>[0]) => {
-  const body = z
-    .object({ ingredients: z.array(z.string()), mustUse: z.array(z.string()).optional() })
-    .catch({ ingredients: [] })
-    .parse(await readJson(c));
-  return { fridge: cleanList(body.ingredients), mustUse: cleanList(body.mustUse ?? []) };
-};
-
-app.post('/recommendations', async (c) => {
-  const { fridge, mustUse } = await readFridge(c);
-  return c.json(recommend(db.listRecipes(), fridge, mustUse));
-});
-
-// LLM 을 호출하므로 버튼을 눌렀을 때만 부른다. 입력 크기도 제한해 비용을 묶어 둔다
-app.post('/recommendations/ai', async (c) => {
-  const { fridge, mustUse } = await readFridge(c);
-  if (!fridge.length) throw new HttpError(400, '냉장고 재료를 1개 이상 입력해 주세요.');
-  return c.json(await suggestRecipes(fridge, mustUse, db.listRecipes()));
-});
-
-app.notFound((c) => c.json({ error: '없는 API 경로예요.' }, 404));
-
-app.onError((err, c) => {
-  if (err instanceof HttpError) return c.json({ error: err.message }, err.status);
-  console.error(err);
-  return c.json({ error: '서버에서 문제가 발생했어요. 잠시 후 다시 시도해 주세요.' }, 500);
-});
-
-const port = Number(process.env.API_PORT ?? 8787);
-serve({ fetch: app.fetch, port }, () => {
+const port = Number(process.env.PORT ?? process.env.API_PORT ?? 8787);
+serve({ fetch: server.fetch, port }, () => {
   console.log(`[api] http://localhost:${port}/api`);
   if (!hasLlmKey()) {
     console.warn('[api] ANTHROPIC_API_KEY / DEEPSEEK_API_KEY 가 없어요. 유튜브 추출·AI 추천을 쓰려면 .env 에 키를 넣고 다시 시작하세요.');
+  }
+  if (!authEnabled()) {
+    console.warn('[api] GOOGLE_CLIENT_ID 가 없어 로그인·드라이브 동기화가 꺼져 있어요. (로컬에서는 AI API 가 로그인 없이 열려 있어요)');
+  } else if (missingAuthEnv().length) {
+    console.warn(`[api] 로그인 설정이 덜 됐어요: ${missingAuthEnv().join(', ')}`);
   }
 });

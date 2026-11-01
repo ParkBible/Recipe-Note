@@ -1,13 +1,12 @@
 import { z } from 'zod';
-import type { AiSuggestion, Recipe } from '../src/types/recipe';
-import { seasonings } from '../src/lib/ingredients';
-import { compactText } from './ingredients';
+import type { AiSuggestion } from '../src/types/recipe';
+import { compactText, seasonings } from '../src/lib/ingredients';
+import { ingredientSet, matchIngredients, usesAll } from '../src/lib/recommend';
 import { generateStructured } from './llm';
-import { ingredientSet, matchIngredients, usesAll } from './recommend';
 
 /**
  * 냉장고 재료 → AI 가 제안하는 (저장되지 않은) 요리. 비용을 아끼려고 한 번에 3개만 받고,
- * 이미 저장한 요리는 제외한다. 꼭 넣을 재료(mustUse)를 고르면 전부 쓴 요리만 남긴다. 매칭률은 모델 말을 믿지 않고 저장 레시피와 같은 규칙으로 서버가 다시 계산한다.
+ * 이미 저장한 요리(브라우저가 보내 준 제목 목록)는 제외한다. 꼭 넣을 재료(mustUse)를 고르면 전부 쓴 요리만 남긴다. 매칭률은 모델 말을 믿지 않고 저장 레시피와 같은 규칙으로 서버가 다시 계산한다.
  */
 
 const SUGGESTION_COUNT = 3;
@@ -44,11 +43,11 @@ const SYSTEM_PROMPT = `너는 냉장고에 있는 재료로 집에서 만들 수
 - 조리 단계는 존댓말 없는 평서문("~한다")으로, 3~8단계로 쓴다.
 - <saved> 에 있는 요리는 이미 저장된 것이니 제안하지 않는다.`;
 
-export async function suggestRecipes(fridge: string[], mustUse: string[], saved: Recipe[]): Promise<AiSuggestion[]> {
+export async function suggestRecipes(fridge: string[], mustUse: string[], savedTitles: string[]): Promise<AiSuggestion[]> {
   const user = [
     `<fridge>${fridge.join(', ')}</fridge>`,
     `<must_use>${mustUse.join(', ')}</must_use>`,
-    `<saved>${saved.map((r) => r.title).join(', ')}</saved>`,
+    `<saved>${savedTitles.join(', ')}</saved>`,
     '',
     '이 재료로 만들 만한 요리를 제안해 줘.',
   ].join('\n');
@@ -59,10 +58,10 @@ export async function suggestRecipes(fridge: string[], mustUse: string[], saved:
 
   const have = ingredientSet(fridge);
   const must = ingredientSet(mustUse);
-  const savedTitles = new Set(saved.map((r) => compactText(r.title)));
+  const saved = new Set(savedTitles.map(compactText));
 
   return out.suggestions
-    .filter((s) => s.title.trim() && s.ingredients.length && s.steps.length && !savedTitles.has(compactText(s.title)))
+    .filter((s) => s.title.trim() && s.ingredients.length && s.steps.length && !saved.has(compactText(s.title)))
     .slice(0, SUGGESTION_COUNT)
     .map((s): AiSuggestion => {
       const ingredients = s.ingredients

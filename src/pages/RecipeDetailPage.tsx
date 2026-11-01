@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { AsyncStatus, Recipe, RecipeDraft } from '@/types';
 import { deleteRecipe, getRecipe, updateRecipe } from '@/api';
+import { onRecipesChanged } from '@/data/db';
 import { validateDraft } from '@/lib/recipeDraft';
 import { usePreviewState } from '@/hooks/usePreviewState';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -40,6 +41,9 @@ export function RecipeDetailPage() {
   }, [id]);
 
   useEffect(load, [load]);
+
+  // 다른 기기에서 고친 내용이 동기화로 들어오면 다시 읽는다. 수정 중일 때는 입력을 덮지 않도록 건너뛴다
+  useEffect(() => onRecipesChanged((source) => source === 'remote' && !editDraft && load()), [editDraft, load]);
 
   const handleEdit = () => {
     if (!recipe) return;

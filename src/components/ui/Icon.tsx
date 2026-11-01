@@ -23,6 +23,9 @@ const paths = {
   edit: <><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="m13.5 6.5 4 4" /></>,
   chef: <><path d="M7 14.5V20h10v-5.5" /><path d="M7 14.5a4 4 0 0 1-1.5-7.5 4.5 4.5 0 0 1 8.5-2 4 4 0 0 1 4.5 6 3.5 3.5 0 0 1-1.5 3.5" /><path d="M7 17h10" /></>,
   refresh: <><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8" /><path d="M4 4v4h4" /><path d="M4 13a8 8 0 0 0 14.5 4.5L20 16" /><path d="M20 20v-4h-4" /></>,
+  cloud: <path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.5 9.6 4.5 4.5 0 0 0 7 18.5z" />,
+  cloudCheck: <><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.5 9.6 4.5 4.5 0 0 0 7 18.5z" /><path d="m9.5 13.5 2 2 3.5-3.5" /></>,
+  logout: <><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 16l-4-4 4-4M6 12h10" /></>,
 } as const;
 
 export type IconName = keyof typeof paths;
