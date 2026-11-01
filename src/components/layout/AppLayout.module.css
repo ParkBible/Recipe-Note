@@ -79,6 +79,17 @@
   flex: 1;
 }
 
+.sync {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.syncNotice {
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+}
+
 .main {
   flex: 1;
   padding-top: var(--space-6);

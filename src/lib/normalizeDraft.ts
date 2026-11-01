@@ -1,7 +1,5 @@
-import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
-import type { RecipeDraft } from '../src/types/recipe';
-import { HttpError } from './errors';
+import type { RecipeDraft } from '@/types';
 
 const optionalText = z.string().trim().optional().transform((v) => v || undefined);
 const optionalPositive = z.number().int().positive().optional().nullable().transform((v) => v ?? undefined);
@@ -31,15 +29,20 @@ const draftSchema = z.object({
     .optional(),
 });
 
-const localId = (prefix: string) => `${prefix}-${randomBytes(4).toString('hex')}`;
+export const randomId = (bytes: number) => {
+  const buf = crypto.getRandomValues(new Uint8Array(bytes));
+  return btoa(String.fromCharCode(...buf)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+const localId = (prefix: string) => `${prefix}-${randomId(4)}`;
 
 /**
- * 저장·수정 요청 본문 검증. 빈 재료·단계는 버리고, 재료·단계 id 와 단계 순서를 서버에서 다시 매긴다.
- * 제목과 재료 1개 이상은 필수.
+ * 저장·수정 직전 정리. 빈 재료·단계는 버리고, 재료·단계 id 와 단계 순서를 다시 매긴다.
+ * 제목과 재료 1개 이상은 필수 (화면의 validateDraft 와 같은 규칙).
  */
-export function parseDraft(body: unknown): RecipeDraft {
-  const parsed = draftSchema.safeParse(body);
-  if (!parsed.success) throw new HttpError(400, '레시피 형식이 올바르지 않아요.');
+export function normalizeDraft(input: unknown): RecipeDraft {
+  const parsed = draftSchema.safeParse(input);
+  if (!parsed.success) throw new Error('레시피 형식이 올바르지 않아요.');
   const d = parsed.data;
 
   const ingredients = d.ingredients
@@ -52,8 +55,8 @@ export function parseDraft(body: unknown): RecipeDraft {
     .map((s, idx) => ({ id: localId('step'), order: idx + 1, description: s.description, timestampSec: s.timestampSec ?? undefined }));
   const tags = [...new Set(d.tags.map((t) => t.trim().replace(/^#/, '')).filter(Boolean))];
 
-  if (!d.title) throw new HttpError(400, '요리 이름을 입력해 주세요.');
-  if (!ingredients.length) throw new HttpError(400, '재료를 1개 이상 입력해 주세요.');
+  if (!d.title) throw new Error('요리 이름을 입력해 주세요.');
+  if (!ingredients.length) throw new Error('재료를 1개 이상 입력해 주세요.');
 
   return { ...d, tags, ingredients, steps };
 }

@@ -30,7 +30,7 @@ export async function generateStructured<T extends z.ZodType>(
   if (deepseekKey) return parseWithDeepSeek(deepseekKey, schema, system, user);
   throw new HttpError(
     503,
-    '서버에 ANTHROPIC_API_KEY 또는 DEEPSEEK_API_KEY 가 설정되지 않아 AI 기능을 쓸 수 없어요. 프로젝트 루트 .env 에 키를 넣고 서버를 다시 시작해 주세요.',
+    '서버에 ANTHROPIC_API_KEY 또는 DEEPSEEK_API_KEY 가 설정되지 않아 AI 기능을 쓸 수 없어요. 서버 환경변수(로컬은 .env, 배포는 Vercel 환경변수)에 키를 넣어 주세요.',
   );
 }
 
@@ -64,7 +64,7 @@ async function generateWithClaude<T extends z.ZodType>(
   } catch (e) {
     if (e instanceof HttpError) throw e;
     if (e instanceof Anthropic.AuthenticationError) {
-      throw new HttpError(503, 'ANTHROPIC_API_KEY 가 올바르지 않아요. .env 의 키를 확인해 주세요.');
+      throw new HttpError(503, '서버의 ANTHROPIC_API_KEY 가 올바르지 않아요. 환경변수를 확인해 주세요.');
     }
     if (e instanceof Anthropic.RateLimitError) {
       throw new HttpError(503, 'Claude API 요청 한도를 넘었어요. 잠시 후 다시 시도해 주세요.');

@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { cx } from '@/lib/cx';
 import { useTheme, type ThemeMode } from '@/hooks/useTheme';
 import { Button, Icon, type IconName } from '@/components/ui';
+import { SyncControl } from './SyncControl';
 import styles from './AppLayout.module.css';
 
 const NAV_ITEMS: Array<{ to: string; label: string; icon: IconName; end?: boolean }> = [
@@ -44,6 +45,7 @@ export function AppLayout() {
             ))}
           </nav>
           <div className={styles.spacer} />
+          <SyncControl />
           <Button variant="ghost" iconOnly icon={theme.icon} onClick={cycle} aria-label={theme.label} title={theme.label} />
         </div>
       </header>

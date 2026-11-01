@@ -4,7 +4,9 @@
 
 ## 실행
 
-Node **22.13 이상** 필요 (내장 `node:sqlite` 사용. 개발은 Node 24 에서 확인).
+Node **20.12 이상** 필요 (개발은 Node 24 에서 확인).
+
+레시피는 **브라우저(IndexedDB)에 저장**하고, 구글로 로그인하면 **구글 드라이브의 앱 전용 숨김 폴더(appDataFolder)로 기기 간 동기화**한다. 서버는 DB 없이 LLM 키가 필요한 일(유튜브·글 추출, AI 추천)과 구글 로그인만 맡는다.
 
 ```bash
 cp .env.example .env   # ANTHROPIC_API_KEY 또는 DEEPSEEK_API_KEY 를 직접 채운다
@@ -16,8 +18,9 @@ npm run typecheck      # 타입체크만
 
 - `npm run dev` 는 `concurrently` 로 Vite(`web`)와 API 서버(`api`, `tsx watch`)를 같이 실행한다. 프론트는 `/api` 만 호출하고 Vite proxy 가 `API_PORT` 로 넘긴다.
 - 따로 띄우려면 `npm run dev:web` / `npm run dev:api`. 서버만 실행은 `npm start`.
-- 첫 실행 시 `data/recipes.db` 가 생기고 레시피는 비어 있다(목업 시드 없음). 초기화하려면 서버를 끄고 `data/` 를 지운다.
-- 서버 시작 시 `ExperimentalWarning: SQLite is an experimental feature` 가 한 줄 찍히는데 정상이다.
+- 레시피는 비어 있는 상태로 시작한다(목업 시드 없음). 초기화하려면 브라우저 개발자 도구에서 IndexedDB `recipe-note` 를 지운다(로그인 중이면 드라이브에서 다시 받아 온다).
+- `GOOGLE_CLIENT_ID` 를 비워 두면 로그인·동기화 없이 이 브라우저에만 저장하고, AI API 는 로컬에서 로그인 없이 열린다.
+- 운영처럼 한 프로세스로 띄우려면 `npm run build && npm start` (서버가 `dist/` 도 내보낸다).
 
 ### 환경변수 (`.env`, 서버만 읽음 · git 제외)
 
@@ -26,14 +29,18 @@ npm run typecheck      # 타입체크만
 | `ANTHROPIC_API_KEY` | (없음) | 유튜브 레시피 추출·AI 추천에 쓰는 Claude API 키. **서버에서만 읽고 프론트로 보내지 않는다.** DEEPSEEK_API_KEY 와 둘 다 없으면 추출·AI 추천 API 가 503 과 안내 문구를 돌려주고, 저장·조회·추천은 그대로 동작한다. 바꾼 뒤에는 서버를 재시작한다. |
 | `DEEPSEEK_API_KEY` | (없음) | Claude 키 대신 쓸 수 있는 DeepSeek API 키. `ANTHROPIC_API_KEY` 가 비어 있을 때만 쓴다. 역시 서버에서만 읽는다. |
 | `DEEPSEEK_MODEL` | `deepseek-chat` | DeepSeek 사용 시 모델 이름 |
-| `API_PORT` | `8787` | API 서버 포트. Vite proxy 도 이 값을 읽는다. |
-| `DB_PATH` | `data/recipes.db` | SQLite 파일 경로 |
+| `API_PORT` | `8787` | 로컬 API 서버 포트. Vite proxy 도 이 값을 읽는다. `PORT` 가 있으면 그걸 쓴다. |
+| `GOOGLE_CLIENT_ID` | (없음) | 구글 OAuth 웹 클라이언트 ID. 비우면 로그인·동기화가 꺼진다 |
+| `GOOGLE_CLIENT_SECRET` | (없음) | 구글 OAuth 클라이언트 보안 비밀 |
+| `ALLOWED_EMAILS` | (없음) | 로그인·AI 기능을 허용할 구글 계정(쉼표 구분). 나머지 계정은 로그인 자체가 거절된다 |
+| `SESSION_SECRET` | (없음) | 로그인 쿠키 서명 키. `openssl rand -base64 32` 등 |
+| `APP_ORIGIN` | 요청 주소 | 로그인 콜백 기준 주소. 프록시 뒤라 요청 주소가 틀릴 때만 지정 |
 
-스택: Vite 5 + React 18 + TypeScript + react-router-dom 6 / 서버: Node + Hono + `node:sqlite` + Anthropic TypeScript SDK + youtubei.js
+스택: Vite 5 + React 18 + TypeScript + react-router-dom 6 / 저장: Dexie(IndexedDB) + 구글 드라이브 REST / 서버: Node + Hono + Anthropic TypeScript SDK + youtubei.js (Vercel 함수 또는 Node)
 
 ### 백엔드 스택을 이렇게 고른 이유
 - **Hono** — 라우트 몇 개짜리 JSON API 에 맞는 가벼운 프레임워크. 타입이 좋고, 같은 앱을 나중에 Cloudflare Workers·Bun 등으로 옮기기도 쉽다.
-- **SQLite (`node:sqlite`)** — 개인용 레시피 저장소라 단일 파일 DB 로 충분하다. Node 내장 모듈이라 Windows 에서 `better-sqlite3` 같은 네이티브 빌드가 필요 없다. 레시피는 JSON 문서로 저장하고 검색용 텍스트 컬럼만 따로 둔다.
+- **IndexedDB(Dexie) + 드라이브 동기화** — 개인용이라 서버 DB 를 두지 않는다. 서버에 디스크가 필요 없어 Vercel 같은 서버리스에 그대로 올라간다. 레시피는 JSON 문서 그대로 저장하고 검색은 브라우저에서 한다.
 - **tsx** — 서버 TS 를 빌드 없이 바로 실행·감시. 프론트와 `src/types` 를 그대로 공유한다.
 - **youtubei.js** — API 키 없이 영상 제목·채널·설명·자막 트랙을 가져온다(유튜브 웹 클라이언트 내부 API).
 - **Claude API (`claude-opus-5-5`)** — 구조화 출력(`output_config.format` + zod 스키마)으로 `RecipeDraft` 모양 JSON 을 강제한다. 거절 시 `fallbacks: "default"` 로 서버 측 대체 모델이 이어 받는다.
@@ -41,20 +48,21 @@ npm run typecheck      # 타입체크만
 
 ## API 엔드포인트
 
+레시피 저장·조회·검색·저장 레시피 추천은 API 가 아니라 브라우저에서 처리한다(`src/data/recipes.ts`, `src/lib/recommend.ts`). `/api/extract*`, `/api/recommendations/ai` 는 서버의 LLM 키를 쓰므로 **`ALLOWED_EMAILS` 계정으로 로그인해야** 부를 수 있다(아니면 401). 로그인 설정이 없으면 로컬에서는 열리고 운영(`NODE_ENV=production`·Vercel)에서는 503 으로 막힌다.
+
 모든 오류는 `{ "error": "사람이 읽을 메시지" }` 형태다. 화면(`src/api/index.ts`)은 이 메시지를 그대로 에러 UI 에 보여준다.
 
 | 메서드 · 경로 | 요청 | 응답 |
 |---|---|---|
-| `GET /api/health` | | `{ ok, hasLlmKey }` |
-| `GET /api/recipes?q=` | `q`: 제목·태그·재료 검색어 (공백 무시, 재료 동의어 포함) | `Recipe[]` 최신순 |
-| `GET /api/recipes/:id` | | `Recipe` / 404 |
-| `POST /api/recipes` | `RecipeDraft` | 201 `Recipe`. 제목·재료 1개 이상 필수(400). 빈 재료·단계는 버리고 id·단계 순서는 서버가 다시 매긴다 |
-| `PUT /api/recipes/:id` | `RecipeDraft` | `Recipe` (`updatedAt` 갱신) / 404 |
-| `DELETE /api/recipes/:id` | | 204 / 404 |
+| `GET /api/health` | | `{ ok, hasLlmKey, authEnabled }` |
+| `GET /api/auth/login` | | 구글 로그인으로 이동 (PKCE, scope `openid email drive.appdata`) |
+| `GET /api/auth/callback` | | 허용 이메일이면 서명 쿠키(세션·refresh token) 설정 후 `/` 로. 아니면 `/?auth=denied` |
+| `GET /api/auth/me` | | `{ enabled, email }` |
+| `POST /api/auth/token` | | `{ accessToken, expiresIn }` 드라이브 동기화용. 401 로그인 필요 |
+| `POST /api/auth/logout` | | 204. refresh token 폐기 + 쿠키 삭제 |
 | `POST /api/extract` | `{ url }` | `ExtractionResult`. 400 잘못된 링크 · 404 볼 수 없는 영상 · 422 설명·자막 없음/레시피 아님 · 503 API 키 없음 · 502 유튜브·LLM 호출 실패 |
 | `POST /api/extract/text` | `{ text }` | 자유 형식으로 적은 레시피 글 → 같은 형식의 `ExtractionResult` (`extractedFrom: ['text']`, `source` 없음). 400 10자 미만·20,000자 초과 · 422 레시피 아님 · 503/502 위와 같음 |
-| `POST /api/recommendations` | `{ ingredients: string[], mustUse?: string[] }` | `Recommendation[]` 매칭률 내림차순, 매칭 0 제외 |
-| `POST /api/recommendations/ai` | `{ ingredients: string[], mustUse?: string[] }` | `AiSuggestion[]` 저장 안 된 요리 최대 3개. LLM 호출. 400 재료 없음·60개/30자 초과 · 503 키 없음·잔액 부족 · 502 LLM 실패 |
+| `POST /api/recommendations/ai` | `{ ingredients: string[], mustUse?: string[], savedTitles?: string[] }` | `AiSuggestion[]` 저장 안 된 요리(`savedTitles` 제외) 최대 3개. LLM 호출. 400 재료 없음·60개/30자 초과 · 503 키 없음·잔액 부족 · 502 LLM 실패 |
 
 ### 유튜브 추출 흐름 (`server/youtube.ts`, `server/extract.ts`)
 1. youtubei.js 로 제목·채널·길이·설명란과 자막 트랙 목록을 가져온다.
@@ -63,7 +71,7 @@ npm run typecheck      # 타입체크만
 4. 설명란도 자막도 없으면 422, 모델이 레시피가 아니라고 판단하면 422 로 사람이 읽을 메시지를 돌려준다.
 5. `extractedFrom` 은 모델이 실제로 근거로 쓴 자료, `warnings` 는 모델 경고 + 서버 경고(자막 못 가져옴, 자동 생성 자막 사용).
 
-### 추천 규칙 (`server/recommend.ts`, `server/ingredients.ts`)
+### 추천 규칙 (`src/lib/recommend.ts`, `src/lib/ingredients.ts`)
 - 재료명은 비교할 때만 정규화한다: 괄호 설명·공백 제거, 소문자, 동의어 묶음(`계란=달걀`, `대파=파`, `밥=햇반`, `마늘=다진마늘` …). 저장된 이름은 원문 그대로 보여준다.
 - 매칭률 = 냉장고에 있는 필수 재료 / 필수 재료. `optional` 재료는 계산에서 뺀다(모두 optional 이면 전체를 필수로 본다).
 - **양념은 사용자에게 모두 있다고 본다.** `src/lib/ingredients.ts` 의 `seasonings`(물·소금·후추·설탕·식용유·간장·참기름·들기름·깨·깨소금·고춧가루·고추장·된장·식초·맛술·굴소스·물엿)는 매칭률 계산에서 빼고 부족한 재료로도 표시하지 않는다. 입력받지 않으며, 냉장고 화면에 안내 문구로만 보여준다. 재료가 전부 양념인 레시피는 전체로 계산한다.
@@ -72,10 +80,16 @@ npm run typecheck      # 타입체크만
 - 대표 이름이 정확히 같을 때만 일치로 본다. 부분 일치는 `고추` ⊂ `고추장` 같은 오탐 때문에 쓰지 않는다.
 - 정렬: 매칭률 → 일치 재료 수 → 최신순. 매칭 0 은 제외.
 
+### 드라이브 동기화 (`src/sync/`)
+- 동기화 파일은 드라이브 appDataFolder 의 `recipe-note-data.json` 하나(`{ version, recipes, tombstones }`). 사용자의 다른 드라이브 파일은 보지 않는다.
+- 매번 이 기기와 드라이브를 **레시피 단위로 합친다**: 같은 레시피는 `updatedAt`(없으면 `createdAt`)이 늦은 쪽, 삭제 기록(tombstone)이 마지막 수정보다 늦으면 삭제가 이긴다. 두 기기에서 서로 다른 레시피를 고쳐도 둘 다 남는다. 삭제 기록은 90일 뒤 정리한다.
+- 언제: 로그인 확인 직후, 이 기기에서 저장·수정·삭제한 뒤 2초, 탭으로 돌아올 때(30초 간격), 헤더의 구름 버튼을 누를 때.
+- 드라이브 access token 은 서버가 refresh token(서명한 httpOnly 쿠키)으로 발급해 주고, 브라우저는 메모리에만 들고 있다.
+
 ### AI 추천 (`server/aiRecommend.ts`, `server/llm.ts`)
-- 냉장고 화면의 **AI에게 추천받기** 버튼을 눌렀을 때만 호출한다(자동 호출 없음, 비용 때문). 한 번에 3개, 이미 저장한 요리 제목은 프롬프트로 빼고 서버에서도 한 번 더 거른다.
+- 냉장고 화면의 **AI에게 추천받기** 버튼을 눌렀을 때만 호출한다(자동 호출 없음, 비용 때문). 한 번에 3개, 이미 저장한 요리 제목은 브라우저가 `savedTitles` 로 보내 프롬프트로 빼고, 서버에서도 한 번 더 거른다.
 - 모델이 재료·분량·조리 단계까지 돌려주고, 매칭률·있는/부족한 재료는 모델 말 대신 저장 레시피 추천과 같은 `matchIngredients` 규칙으로 서버가 계산한다. 매칭 0 은 뺀다.
-- **내 레시피로 저장**을 누르면 그 draft 를 그대로 `POST /api/recipes` 로 저장하고 상세로 이동한다. 영상 출처가 없고 `AI추천` 태그가 붙는다.
+- **내 레시피로 저장**을 누르면 그 draft 를 그대로 이 기기에 저장하고 상세로 이동한다. 영상 출처가 없고 `AI추천` 태그가 붙는다.
 - `server/llm.ts` 가 추출과 AI 추천의 LLM 호출을 맡는다: `ANTHROPIC_API_KEY` 가 있으면 Claude 구조화 출력, 없으면 DeepSeek JSON 모드 + zod 검증.
 
 ## 스타일 방식
@@ -116,30 +130,31 @@ npm run typecheck      # 타입체크만
 
 ```
 server/              API 서버 (tsx 로 실행, server/tsconfig.json 으로 타입체크)
-├─ index.ts          Hono 라우트, .env 로드, 에러 → { error } 변환
-├─ db.ts             node:sqlite 저장소 (recipes 테이블: JSON 문서 + 검색 텍스트)
-├─ validate.ts       RecipeDraft 검증·정리 (zod)
+├─ app.ts            Hono 라우트, 에러 → { error } 변환 (로컬·Vercel 공용)
+├─ index.ts          로컬 Node 실행. .env 로드, dist/ 가 있으면 화면도 서빙
+├─ auth.ts           구글 로그인(PKCE), 허용 이메일 검사, 드라이브 access token 발급
 ├─ youtube.ts        영상 정보·설명·자막 수집 (youtubei.js)
 ├─ llm.ts            LLM 호출 공통 (Claude 구조화 출력 / DeepSeek 중 키로 선택)
 ├─ deepseek.ts       DeepSeek JSON 모드 호출 + zod 검증
 ├─ extract.ts        영상 → 레시피 파싱
-├─ recommend.ts      냉장고 추천 매칭 (저장 레시피)
 ├─ aiRecommend.ts    냉장고 재료 → AI 요리 제안
-├─ ingredients.ts    재료명 정규화·동의어
 └─ errors.ts         HttpError (화면에 보여줄 메시지 + 상태 코드)
-data/recipes.db      SQLite 파일 (git 제외, 첫 실행 시 생성)
+api/index.ts         Vercel 함수 진입점 (server/app.ts 를 그대로 내보냄). vercel.json 이 /api/* 를 여기로 보낸다
 
 src/
 ├─ types/            도메인 타입 (Recipe, Ingredient, RecipeStep, RecipeDraft, ExtractionResult, Recommendation, AsyncStatus)
-├─ api/index.ts      ★ 데이터 경계. 화면은 여기 함수만 호출한다. /api fetch + ApiError
+├─ api/index.ts      ★ 데이터 경계. 화면은 여기 함수만 호출한다. 저장·검색은 data/, LLM 은 /api fetch + ApiError
+├─ data/             db.ts (Dexie 스키마·변경 알림), recipes.ts (저장·수정·삭제·검색)
+├─ sync/             session.ts (로그인 상태), sync.ts (병합·동기화 시점), drive.ts (드라이브 파일 읽기/쓰기)
 ├─ lib/              youtube.ts (videoId 파싱·썸네일/임베드/시점 URL·타임스탬프 포맷. 서버도 import),
-│                    recipeDraft.ts (저장 전 필수값 검사), ingredients.ts (자주 쓰는 재료), cx.ts
+│                    ingredients.ts (양념·재료명 정규화·동의어. 서버도 import), recommend.ts (냉장고 추천 매칭. 서버도 import),
+│                    normalizeDraft.ts (저장 직전 정리·검증, zod), recipeDraft.ts (저장 전 필수값 검사), cx.ts
 ├─ hooks/            useTheme, usePreviewState
 ├─ styles/           tokens.css, global.css
 ├─ components/
 │  ├─ ui/            범용: Button(+ButtonLink, ButtonAnchor), Input, Textarea, Chip, Card,
 │  │                 EmptyState, Skeleton, SkeletonText, Spinner, ErrorMessage, Icon
-│  ├─ layout/        AppLayout(헤더·nav·하단 탭바·테마 토글), PageHeader
+│  ├─ layout/        AppLayout(헤더·nav·하단 탭바·테마 토글), SyncControl(로그인·동기화 버튼), PageHeader
 │  └─ recipe/        도메인: RecipeCard(+Skeleton), RecipeThumbnail, RecipeMeta, YoutubeEmbed,
 │                    IngredientList, StepList, RecipeEditor, FridgeBoard,
 │                    RecommendationCard(+Skeleton), MatchMeter
@@ -158,12 +173,22 @@ src/
 - `Recommendation` — recipe, matchRate(0~1), matchedIngredients, missingIngredients
 - `AiSuggestion` — draft(`RecipeDraft`), matchRate, matchedIngredients, missingIngredients
 
+## 배포 (Vercel)
+
+1. 구글 클라우드 콘솔에서 OAuth 클라이언트(웹 애플리케이션)를 만든다.
+   - 승인된 리디렉션 URI: `https://<도메인>/api/auth/callback` (로컬은 `http://localhost:5173/api/auth/callback`)
+   - Google Drive API 를 사용 설정하고, 동의 화면 범위에 `openid`, `email`, `.../auth/drive.appdata` 를 넣는다.
+   - 동의 화면 게시 상태가 **테스트**면 refresh token 이 7일 뒤 만료된다. **프로덕션으로 게시**해 둔다(본인만 쓰면 검수 없이 '확인되지 않은 앱' 경고만 뜬다).
+2. Vercel 프로젝트 환경변수에 `DEEPSEEK_API_KEY`(또는 `ANTHROPIC_API_KEY`), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ALLOWED_EMAILS`, `SESSION_SECRET` 을 넣는다.
+3. 레포를 Vercel 에 연결하면 `vercel.json` 대로 Vite 빌드 결과를 정적으로, `api/index.ts` 를 함수로 올린다.
+
 ## 남은 TODO
 
 - **자막 수집이 대부분 실패한다.** 자막 트랙 목록은 받아오지만, 2026-10 현재 유튜브가 자막 본문 요청(timedtext)에 PO 토큰을 요구해 빈 응답을 준다. 이 경우 설명란만으로 추출하고 경고를 띄운다. 설명란에 레시피가 없는 영상은 정확도가 떨어진다. 해결하려면 공식 YouTube Data API(captions.download 는 영상 소유자만 가능)나 별도 자막 서비스 등 정식 경로를 검토할 것. 봇 검사 우회는 하지 않는다.
 - **추출 진행 표시**는 아직 연출용 타이머다(`AddRecipePage` 의 `ExtractingCard`). 실제로는 영상 수집 수 초 + Claude 호출 수십 초가 걸린다. 서버가 SSE 로 단계를 보내면 그 값으로 바꾼다.
-- **추천 동의어 사전**(`server/ingredients.ts`)은 손으로 쓴 최소 목록이다. 많이 쓰는 재료부터 늘리거나, 저장 시 Claude 로 대표 이름을 붙이는 방법이 있다.
+- **추천 동의어 사전**(`src/lib/ingredients.ts`)은 손으로 쓴 최소 목록이다. 많이 쓰는 재료부터 늘리거나, 저장 시 Claude 로 대표 이름을 붙이는 방법이 있다.
 - **수정 화면 이탈 경고 없음.** 수정 중 다른 페이지로 가면 변경 내용이 사라진다.
-- **로그인·다중 사용자 없음.** 단일 사용자 로컬 앱 기준이다. 배포하려면 인증과 `/api/extract` 사용량 제한(Claude 비용)이 먼저 필요하다.
-- **배포 빌드 미정.** `npm run build` 는 프론트 정적 파일만 만든다. 운영에서는 `npm start` 로 API 서버를 띄우고 `dist/` 를 같은 출처에서 서빙(또는 리버스 프록시로 `/api` 연결)해야 한다.
+- **냉장고 재료는 동기화하지 않는다.** 기기별 localStorage 에만 있다.
+- **같은 레시피를 두 기기에서 동시에 고치면** 늦게 고친 쪽만 남는다(필드 단위 병합 없음).
+- **유튜브 추출은 데이터센터 IP(Vercel 등)에서 봇 검사에 막힐 수 있다.** 그때도 글 붙여넣기 추출은 동작한다.
 - 상태 미리보기(`?state=`)는 개발용으로 남겨 뒀다. 필요 없어지면 각 페이지의 `usePreviewState()` 호출을 지운다.

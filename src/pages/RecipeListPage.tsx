@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AsyncStatus, Recipe } from '@/types';
 import { listRecipes } from '@/api';
+import { onRecipesChanged } from '@/data/db';
 import { usePreviewState } from '@/hooks/usePreviewState';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ButtonLink, EmptyState, ErrorMessage, Input } from '@/components/ui';
@@ -39,6 +40,9 @@ export function RecipeListPage() {
   }, [query, load]);
 
   useEffect(() => () => inflight.current?.abort(), []);
+
+  // 드라이브 동기화로 다른 기기의 변경이 들어오면 목록을 다시 읽는다
+  useEffect(() => onRecipesChanged((source) => source === 'remote' && load(query)), [query, load]);
 
   const viewStatus: AsyncStatus = preview === 'loading' ? 'loading' : preview === 'error' ? 'error' : status;
   const items = preview === 'empty' ? [] : recipes;
