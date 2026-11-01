@@ -44,30 +44,63 @@ function merge(local: SyncFile, remote: SyncFile): SyncFile {
   };
 }
 
-/** 합친 결과를 이 기기에 반영. 동기화 중에 새로 저장된 레시피가 있으면 그것까지 다시 합쳐 잃지 않는다 */
-async function applyLocally(merged: SyncFile): Promise<boolean> {
-  return db.transaction('rw', db.recipes, db.tombstones, async () => {
-    const current: SyncFile = {
-      version: 1,
-      recipes: await db.recipes.toArray(),
-      tombstones: await db.tombstones.toArray(),
-    };
-    const next = merge(current, merged);
-    const changed = JSON.stringify(sortById(next)) !== JSON.stringify(sortById(current));
-    if (changed) {
-      await db.recipes.clear();
-      await db.recipes.bulkPut(next.recipes);
-      await db.tombstones.clear();
-      await db.tombstones.bulkPut(next.tombstones);
-    }
-    return changed;
-  });
-}
+const EMPTY: SyncFile = { version: 1, recipes: [], tombstones: [] };
+
+const readLocal = async (): Promise<SyncFile> => ({
+  version: 1,
+  recipes: await db.recipes.toArray(),
+  tombstones: await db.tombstones.toArray(),
+});
 
 const sortById = (f: SyncFile) => ({
   recipes: [...f.recipes].sort((a, b) => a.id.localeCompare(b.id)),
   tombstones: [...f.tombstones].sort((a, b) => a.id.localeCompare(b.id)),
 });
+
+const sameContent = (a: SyncFile, b: SyncFile) => JSON.stringify(sortById(a)) === JSON.stringify(sortById(b));
+
+/** 원격을 이 기기와 합쳐 반영하고, 합친 결과(= 올릴 내용)를 돌려준다. 한 트랜잭션이라 그 사이 저장된 레시피도 잃지 않는다 */
+async function mergeIntoLocal(remote: SyncFile): Promise<{ merged: SyncFile; changed: boolean }> {
+  return db.transaction('rw', db.recipes, db.tombstones, async () => {
+    const current = await readLocal();
+    const merged = merge(current, remote);
+    const changed = !sameContent(merged, current);
+    if (changed) {
+      await db.recipes.clear();
+      await db.recipes.bulkPut(merged.recipes);
+      await db.tombstones.clear();
+      await db.tombstones.bulkPut(merged.tombstones);
+    }
+    return { merged, changed };
+  });
+}
+
+const OWNER_KEY = 'recipe-note:sync-owner';
+
+/**
+ * 로그인한 계정과 이 기기 데이터의 주인이 다르면 로컬을 비운다. 다른 계정의 레시피가 이 계정 드라이브로 섞여 올라가지 않게.
+ * 처음 로그인하는 기기(주인 기록 없음)는 로그인 전에 저장한 레시피를 그대로 이 계정으로 올린다.
+ */
+export async function claimLocalData(email: string) {
+  let owner: string | null = null;
+  try {
+    owner = localStorage.getItem(OWNER_KEY);
+  } catch {
+    /* 저장소 접근 불가면 주인 확인 없이 진행 */
+  }
+  if (owner && owner !== email) {
+    await db.transaction('rw', db.recipes, db.tombstones, async () => {
+      await db.recipes.clear();
+      await db.tombstones.clear();
+    });
+    emitRecipesChanged('remote');
+  }
+  try {
+    localStorage.setItem(OWNER_KEY, email);
+  } catch {
+    /* noop */
+  }
+}
 
 // ── 실행 관리 ────────────────────────────────────────────────
 
@@ -77,6 +110,8 @@ let running: Promise<void> | null = null;
 let rerun = false;
 let debounce: ReturnType<typeof setTimeout> | undefined;
 let lastAttempt = 0;
+/** startSync·stopSync 마다 올린다. 로그아웃 전에 시작한 동기화가 끝나며 상태를 덮어쓰지 않게 */
+let generation = 0;
 const statusListeners = new Set<() => void>();
 
 const setStatus = (next: SyncStatus) => {
@@ -92,26 +127,25 @@ export function onSyncStateChanged(listener: () => void): () => void {
 }
 
 async function runOnce() {
+  const gen = generation;
+  const settle = (next: SyncStatus) => gen === generation && setStatus(next);
   lastAttempt = Date.now();
   setStatus('syncing');
   try {
     const remote = await downloadSyncFile();
-    const local: SyncFile = {
-      version: 1,
-      recipes: await db.recipes.toArray(),
-      tombstones: await db.tombstones.toArray(),
-    };
-    const merged = remote ? merge(local, remote.data) : local;
-    if (await applyLocally(merged)) emitRecipesChanged('remote');
+    if (gen !== generation) return;
+    const { merged, changed } = await mergeIntoLocal(remote?.data ?? EMPTY);
+    if (changed) emitRecipesChanged('remote');
     // 원격과 내용이 같으면 올리지 않는다
-    if (!remote || JSON.stringify(sortById(merged)) !== JSON.stringify(sortById(remote.data))) {
+    if (!remote || !sameContent(merged, remote.data)) {
+      if (gen !== generation) return;
       await uploadSyncFile(merged, remote?.fileId ?? null);
     }
-    lastSyncedAt = new Date();
-    setStatus('idle');
+    if (gen === generation) lastSyncedAt = new Date();
+    settle('idle');
   } catch (e) {
     console.error('[sync]', e);
-    setStatus(e instanceof AuthRequiredError ? 'auth' : 'error');
+    settle(e instanceof AuthRequiredError ? 'auth' : 'error');
   }
 }
 
@@ -138,6 +172,7 @@ let detach: (() => void) | undefined;
 /** 로그인 확인 후 호출. 시작 시 한 번, 이 기기에서 바꾼 뒤 2초, 창으로 돌아올 때(30초 간격) 동기화한다 */
 export function startSync() {
   if (detach) return;
+  generation++;
   setStatus('idle');
   const offChange = onRecipesChanged((source) => {
     if (source !== 'local') return;
@@ -159,5 +194,7 @@ export function startSync() {
 export function stopSync() {
   detach?.();
   detach = undefined;
+  generation++;
+  rerun = false;
   setStatus('off');
 }

@@ -48,13 +48,13 @@ app.post('/extract/text', async (c) => {
   return c.json(await extractRecipeFromText(trimmed));
 });
 
-const cleanList = (list: string[], max: number, maxLength: number, message: string) => {
+const cleanList = (list: string[]) => {
   const out = [...new Set(list.map((s) => s.trim()).filter(Boolean))];
-  if (out.length > max || out.some((s) => s.length > maxLength)) throw new HttpError(400, message);
+  if (out.length > 60 || out.some((s) => s.length > 30)) {
+    throw new HttpError(400, '재료는 60개까지, 각 30자 이내로 입력해 주세요.');
+  }
   return out;
 };
-
-const INGREDIENT_LIMIT = '재료는 60개까지, 각 30자 이내로 입력해 주세요.';
 
 // LLM 을 호출하므로 버튼을 눌렀을 때만 부른다. 입력 크기도 제한해 비용을 묶어 둔다.
 // savedTitles 는 이미 저장한 요리 이름으로, 같은 요리를 다시 제안하지 않게 브라우저가 보내 준다
@@ -67,9 +67,10 @@ app.post('/recommendations/ai', async (c) => {
     })
     .catch({ ingredients: [] })
     .parse(await readJson(c));
-  const fridge = cleanList(body.ingredients, 60, 30, INGREDIENT_LIMIT);
-  const mustUse = cleanList(body.mustUse ?? [], 60, 30, INGREDIENT_LIMIT);
-  const savedTitles = cleanList(body.savedTitles ?? [], 1000, 100, '저장된 요리 목록이 너무 길어요.');
+  const fridge = cleanList(body.ingredients);
+  const mustUse = cleanList(body.mustUse ?? []);
+  // 중복 제외용 참고 자료라 거절하지 않고 잘라 쓴다 (최신 1000개, 제목 100자)
+  const savedTitles = [...new Set((body.savedTitles ?? []).map((t) => t.trim().slice(0, 100)).filter(Boolean))].slice(0, 1000);
   if (!fridge.length) throw new HttpError(400, '냉장고 재료를 1개 이상 입력해 주세요.');
   return c.json(await suggestRecipes(fridge, mustUse, savedTitles));
 });

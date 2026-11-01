@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { forgetAccessToken } from './drive';
-import { getSyncState, onSyncStateChanged, startSync, stopSync } from './sync';
+import { claimLocalData, getSyncState, onSyncStateChanged, startSync, stopSync } from './sync';
 
 /**
  * 구글 로그인 상태. 로그인하면 드라이브 동기화를 시작하고, 서버의 AI 기능도 쓸 수 있다.
@@ -29,7 +29,7 @@ export function useSession() {
       .then(({ enabled, email }) => {
         if (cancelled) return;
         setSession(!enabled ? { state: 'disabled' } : email ? { state: 'signedIn', email } : { state: 'signedOut' });
-        if (email) startSync();
+        if (email) void claimLocalData(email).then(startSync);
       })
       // 서버에 닿지 못하면 이 기기 저장만으로 동작한다
       .catch(() => !cancelled && setSession({ state: 'disabled' }));

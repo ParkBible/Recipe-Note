@@ -184,10 +184,15 @@ authRoutes.post('/token', async (c) => {
     client_secret: clientSecret,
     grant_type: 'refresh_token',
   });
-  if (!ok || typeof data.access_token !== 'string') {
-    // invalid_grant: 사용자가 권한을 끊었거나 refresh token 이 만료됨
+  if (data.error === 'invalid_grant') {
+    // 사용자가 권한을 끊었거나 refresh token 이 만료됨. 이때만 로그아웃시킨다
     clearAuthCookies(c);
     throw new HttpError(401, '구글 로그인이 만료됐어요. 다시 로그인해 주세요.');
+  }
+  if (!ok || typeof data.access_token !== 'string') {
+    // 구글 쪽 일시 장애(5xx·429 등)는 로그인을 유지하고 다음 동기화 때 다시 시도한다
+    console.error('[auth] token refresh failed', data.error);
+    throw new HttpError(502, '구글 인증 서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.');
   }
   return c.json({ accessToken: data.access_token, expiresIn: Number(data.expires_in) || 3600 });
 });

@@ -25,6 +25,8 @@ export function RecipeListPage() {
     setStatus('loading');
     listRecipes(q, { signal: controller.signal })
       .then((data) => {
+        // 로컬 조회는 취소 신호를 받지 않으므로, 더 새 요청이 나간 뒤 끝난 결과는 버린다
+        if (controller.signal.aborted) return;
         setRecipes(data);
         setStatus('success');
       })

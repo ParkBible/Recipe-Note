@@ -59,12 +59,35 @@ export async function downloadSyncFile(): Promise<{ fileId: string; data: SyncFi
   const fileId = await findFileId();
   if (!fileId) return null;
   const res = await driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`);
-  const data = (await res.json()) as Partial<SyncFile>;
+  const data = (await res.json()) as Partial<SyncFile> | null;
+  // 깨졌거나 예전 형식인 항목은 건너뛴다. 그대로 넣으면 목록에서 빠지거나 검색·추천이 터진다
   return {
     fileId,
-    data: { version: 1, recipes: data.recipes ?? [], tombstones: data.tombstones ?? [] },
+    data: {
+      version: 1,
+      recipes: Array.isArray(data?.recipes) ? data.recipes.filter(isRecipe) : [],
+      tombstones: Array.isArray(data?.tombstones) ? data.tombstones.filter(isTombstone) : [],
+    },
   };
 }
+
+const isRecipe = (r: unknown): r is Recipe => {
+  const v = r as Partial<Recipe> | null;
+  return (
+    typeof v?.id === 'string' &&
+    typeof v.title === 'string' &&
+    typeof v.createdAt === 'string' &&
+    Array.isArray(v.tags) &&
+    Array.isArray(v.steps) &&
+    Array.isArray(v.ingredients) &&
+    v.ingredients.every((i) => typeof i?.name === 'string')
+  );
+};
+
+const isTombstone = (t: unknown): t is Tombstone => {
+  const v = t as Partial<Tombstone> | null;
+  return typeof v?.id === 'string' && typeof v.deletedAt === 'string';
+};
 
 /** fileId 가 있으면 덮어쓰고, 없으면 appDataFolder 에 새로 만든다 */
 export async function uploadSyncFile(data: SyncFile, fileId: string | null): Promise<void> {

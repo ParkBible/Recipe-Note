@@ -15,6 +15,8 @@ if (existsSync('.env')) process.loadEnvFile('.env');
 
 const server = new Hono();
 server.route('/', api);
+// 하위 앱의 notFound 는 route() 로 붙이면 쓰이지 않는다. 없는 /api 경로가 아래 index.html 로 빠지지 않게 막는다
+server.all('/api/*', (c) => c.json({ error: '없는 API 경로예요.' }, 404));
 if (existsSync('dist/index.html')) {
   server.use('/*', serveStatic({ root: './dist' }));
   // 클라이언트 라우팅(/recipes/:id 등)은 index.html 로

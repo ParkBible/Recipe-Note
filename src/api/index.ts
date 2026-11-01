@@ -88,6 +88,6 @@ export async function suggestRecipesWithAi(
   { signal }: RequestOptions = {},
 ): Promise<AiSuggestion[]> {
   // 이미 저장한 요리는 다시 제안하지 않도록 제목만 같이 보낸다
-  const savedTitles = (await store.listRecipes()).map((r) => r.title);
+  const savedTitles = (await store.listRecipes()).slice(0, 1000).map((r) => r.title.slice(0, 100));
   return request('/recommendations/ai', { ...json('POST', { ingredients, mustUse, savedTitles }), signal });
 }
