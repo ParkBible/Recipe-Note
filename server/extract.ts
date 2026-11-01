@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { ExtractionResult, RecipeDraft } from '../src/types/recipe';
-import { HttpError } from './errors';
-import { fetchVideo, type VideoData } from './youtube';
-import { generateStructured } from './llm';
+import type { ExtractionResult, RecipeDraft } from '../src/types/recipe.js';
+import { HttpError } from './errors.js';
+import { fetchVideo, type VideoData } from './youtube.js';
+import { generateStructured } from './llm.js';
 
 /**
  * 유튜브 영상 → RecipeDraft. 설명란·자막을 LLM 에 넘기고 JSON 스키마에 맞춘 결과로 받는다.

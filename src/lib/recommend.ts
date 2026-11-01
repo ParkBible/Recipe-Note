@@ -1,6 +1,6 @@
 // 서버(server/aiRecommend.ts)도 import 하므로 @ 별칭 대신 상대 경로를 쓴다
-import type { Ingredient, Recipe, Recommendation } from '../types/recipe';
-import { canonicalIngredient, seasonings } from './ingredients';
+import type { Ingredient, Recipe, Recommendation } from '../types/recipe.js';
+import { canonicalIngredient, seasonings } from './ingredients.js';
 
 /**
  * 냉장고 재료 → 추천. 매칭률 = 냉장고에 있는 필수 재료 수 / 필수 재료 수.

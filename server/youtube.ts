@@ -1,5 +1,5 @@
 import { Innertube, Log } from 'youtubei.js';
-import { HttpError } from './errors';
+import { HttpError } from './errors.js';
 
 /**
  * 유튜브 영상 정보·설명·자막 수집. youtubei.js(유튜브 웹 클라이언트 내부 API)를 기본 설정 그대로 쓴다.

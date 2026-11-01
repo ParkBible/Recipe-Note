@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { HttpError } from './errors';
+import { HttpError } from './errors.js';
 
 /**
  * DeepSeek Chat Completions(OpenAI 호환) 호출. JSON 모드는 스키마를 강제하지 않으므로

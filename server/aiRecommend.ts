@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import type { AiSuggestion } from '../src/types/recipe';
-import { compactText, seasonings } from '../src/lib/ingredients';
-import { ingredientSet, matchIngredients, usesAll } from '../src/lib/recommend';
-import { generateStructured } from './llm';
+import type { AiSuggestion } from '../src/types/recipe.js';
+import { compactText, seasonings } from '../src/lib/ingredients.js';
+import { ingredientSet, matchIngredients, usesAll } from '../src/lib/recommend.js';
+import { generateStructured } from './llm.js';
 
 /**
  * 냉장고 재료 → AI 가 제안하는 (저장되지 않은) 요리. 비용을 아끼려고 한 번에 3개만 받고,

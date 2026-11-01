@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { parseYoutubeVideoId } from '../src/lib/youtube';
-import { authEnabled, authRoutes, requireUser } from './auth';
-import { HttpError } from './errors';
-import { suggestRecipes } from './aiRecommend';
-import { MAX_TEXT_LENGTH, extractRecipe, extractRecipeFromText } from './extract';
-import { hasLlmKey } from './llm';
+import { parseYoutubeVideoId } from '../src/lib/youtube.js';
+import { authEnabled, authRoutes, requireUser } from './auth.js';
+import { HttpError } from './errors.js';
+import { suggestRecipes } from './aiRecommend.js';
+import { MAX_TEXT_LENGTH, extractRecipe, extractRecipeFromText } from './extract.js';
+import { hasLlmKey } from './llm.js';
 
 /**
  * API 라우트. 레시피 저장·검색·추천은 브라우저(IndexedDB)가 하고, 서버는 LLM 키가 필요한 일과 구글 로그인만 맡는다.

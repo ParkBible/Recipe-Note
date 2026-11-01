@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
-import { app as api } from './app';
-import { authEnabled, missingAuthEnv } from './auth';
-import { hasLlmKey } from './llm';
+import { app as api } from './app.js';
+import { authEnabled, missingAuthEnv } from './auth.js';
+import { hasLlmKey } from './llm.js';
 
 /**
  * 로컬 실행용 Node 서버. 개발 중엔 API 만 띄우고 Vite 가 /api 를 여기로 넘긴다.

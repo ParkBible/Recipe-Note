@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie';
 import type { CookieOptions } from 'hono/utils/cookie';
-import { HttpError } from './errors';
+import { HttpError } from './errors.js';
 
 /**
  * 구글 로그인. 두 가지 일을 한다.

@@ -1,8 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import type { z } from 'zod';
-import { HttpError } from './errors';
-import { parseWithDeepSeek } from './deepseek';
+import { HttpError } from './errors.js';
+import { parseWithDeepSeek } from './deepseek.js';
 
 /**
  * 추출·AI 추천이 함께 쓰는 LLM 호출. 결과는 zod 스키마 모양의 객체로 돌려준다.
