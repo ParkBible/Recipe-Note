@@ -31,6 +31,8 @@ export function RecipeThumbnail({ source, imageId, title, showPlay, large, class
   const [failed, setFailed] = useState(false);
   const imageUrl = useRecipeImage(imageId);
   const videoThumbUrl = source?.thumbnailUrl ?? (source ? youtubeThumbnailUrl(source.videoId) : undefined);
+  // 사진을 찾는 중에는 영상 썸네일을 먼저 띄웠다가 바꾸지 않게 비워 둔다
+  const imagePending = imageUrl === undefined;
   const src = imageUrl ?? videoThumbUrl;
   useEffect(() => setFailed(false), [src]);
   // 편집 중 제목이 바뀌어도 색이 튀지 않게 videoId 를 우선 쓴다
@@ -38,7 +40,7 @@ export function RecipeThumbnail({ source, imageId, title, showPlay, large, class
 
   return (
     <div className={cx(styles.thumb, className)}>
-      {src && !failed ? (
+      {imagePending ? null : src && !failed ? (
         <img
           className={styles.image}
           src={src}

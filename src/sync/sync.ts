@@ -1,5 +1,14 @@
 import type { Recipe } from '@/types';
-import { db, emitRecipesChanged, onRecipesChanged, versionOf, type Tombstone } from '@/data/db';
+import {
+  ORPHAN_IMAGE_GRACE_MS,
+  db,
+  emitRecipesChanged,
+  imageIdsOf,
+  onRecipesChanged,
+  pruneOrphanImages,
+  versionOf,
+  type Tombstone,
+} from '@/data/db';
 import {
   AuthRequiredError,
   deleteDriveFile,
@@ -83,30 +92,33 @@ async function mergeIntoLocal(remote: SyncFile): Promise<{ merged: SyncFile; cha
   });
 }
 
-/**
- * 어느 레시피에도 안 붙은 사진도 이 시간 동안은 지우지 않는다.
- * 편집 중 고른 사진(아직 저장 전)과, 다른 기기가 JSON 을 올린 직후 아직 이 기기가 못 받은 사진을 지키기 위해서다.
- */
-const ORPHAN_IMAGE_GRACE_MS = 24 * 60 * 60 * 1000;
+// 사진 구성이 그대로면 드라이브 사진 목록 조회를 건너뛴다. 하루 지난 고아 사진을 지우기 위해 가끔은 그래도 돈다
+const IMAGE_RESYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let lastImageSync: { key: string; at: number } | undefined;
 
 /** 레시피 JSON 을 올린 뒤에 호출한다. 이 기기에만 있는 사진을 올리고, 레시피에서 빠진 사진은 양쪽에서 정리한다 */
 async function syncImages(merged: SyncFile, isCurrent: () => boolean) {
-  const referenced = new Set(merged.recipes.map((r) => r.imageId).filter((id): id is string => !!id));
+  const referenced = imageIdsOf(merged.recipes);
+  const localIds = (await db.images.toCollection().primaryKeys()) as string[];
+  const key = `${[...referenced].sort().join(',')}|${[...localIds].sort().join(',')}`;
+  if (lastImageSync?.key === key && Date.now() - lastImageSync.at < IMAGE_RESYNC_INTERVAL_MS) return;
+
   const cutoff = new Date(Date.now() - ORPHAN_IMAGE_GRACE_MS).toISOString();
   const remote = await listImageFiles();
   const remoteIds = new Set(remote.map((f) => f.imageId));
 
-  const localImages = await db.images.toArray();
-  for (const image of localImages) {
+  for (const id of localIds) {
     if (!isCurrent()) return;
-    if (referenced.has(image.id) && !remoteIds.has(image.id)) await uploadImageFile(image.id, image.blob);
+    if (!referenced.has(id) || remoteIds.has(id)) continue;
+    const image = await db.images.get(id);
+    if (image) await uploadImageFile(id, image.blob);
   }
   for (const file of remote) {
     if (!isCurrent()) return;
     if (!referenced.has(file.imageId) && file.modifiedTime < cutoff) await deleteDriveFile(file.fileId);
   }
-  const staleLocal = localImages.filter((image) => !referenced.has(image.id) && image.createdAt < cutoff).map((image) => image.id);
-  if (staleLocal.length) await db.images.bulkDelete(staleLocal);
+  await pruneOrphanImages(referenced);
+  if (isCurrent()) lastImageSync = { key, at: Date.now() };
 }
 
 const OWNER_KEY = 'recipe-note:sync-owner';
@@ -123,9 +135,10 @@ export async function claimLocalData(email: string) {
     /* 저장소 접근 불가면 주인 확인 없이 진행 */
   }
   if (owner && owner !== email) {
-    await db.transaction('rw', db.recipes, db.tombstones, async () => {
+    await db.transaction('rw', db.recipes, db.tombstones, db.images, async () => {
       await db.recipes.clear();
       await db.tombstones.clear();
+      await db.images.clear();
     });
     emitRecipesChanged('remote');
   }
@@ -175,7 +188,8 @@ async function runOnce() {
       if (gen !== generation) return;
       await uploadSyncFile(merged, remote?.fileId ?? null);
     }
-    await syncImages(merged, () => gen === generation);
+    // 사진은 레시피 내용과 별개라, 실패해도 레시피 동기화는 성공으로 두고 다음 동기화 때 다시 시도한다
+    await syncImages(merged, () => gen === generation).catch((e) => console.warn('[sync] images', e));
     if (gen === generation) lastSyncedAt = new Date();
     settle('idle');
   } catch (e) {
@@ -230,6 +244,7 @@ export function stopSync() {
   detach?.();
   detach = undefined;
   generation++;
+  lastImageSync = undefined;
   rerun = false;
   setStatus('off');
 }

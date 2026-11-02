@@ -34,6 +34,23 @@ db.version(2).stores({
   images: 'id',
 });
 
+/**
+ * 어느 레시피에도 안 붙은 사진도 이 시간 동안은 지우지 않는다.
+ * 편집 중 고른 사진(아직 저장 전)과, 다른 기기가 JSON 을 올린 직후 아직 이 기기가 못 받은 사진을 지키기 위해서다.
+ */
+export const ORPHAN_IMAGE_GRACE_MS = 24 * 60 * 60 * 1000;
+
+export const imageIdsOf = (recipes: Recipe[]) =>
+  new Set(recipes.map((r) => r.imageId).filter((id): id is string => !!id));
+
+/** 이 기기에서 레시피에 안 붙은 지 오래된 사진을 지운다. 로그인 여부와 상관없이 앱을 켤 때와 동기화 때 돈다 */
+export async function pruneOrphanImages(referenced?: Set<string>) {
+  const refs = referenced ?? imageIdsOf(await db.recipes.toArray());
+  const cutoff = new Date(Date.now() - ORPHAN_IMAGE_GRACE_MS).toISOString();
+  const stale = await db.images.filter((image) => !refs.has(image.id) && image.createdAt < cutoff).primaryKeys();
+  if (stale.length) await db.images.bulkDelete(stale);
+}
+
 /** 동기화 병합에서 어느 쪽이 최신인지 비교하는 시각 */
 export const versionOf = (recipe: Recipe) => recipe.updatedAt ?? recipe.createdAt;
 

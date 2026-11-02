@@ -34,7 +34,7 @@ export const forgetAccessToken = () => {
   cached = undefined;
 };
 
-async function driveFetch(url: string, init: RequestInit = {}): Promise<Response> {
+async function driveFetch(url: string, init: RequestInit = {}, acceptStatuses: number[] = []): Promise<Response> {
   const res = await fetch(url, {
     ...init,
     headers: { Authorization: `Bearer ${await accessToken()}`, ...init.headers },
@@ -43,7 +43,7 @@ async function driveFetch(url: string, init: RequestInit = {}): Promise<Response
     forgetAccessToken();
     throw new AuthRequiredError('드라이브 인증이 만료됐어요. 다시 로그인해 주세요.');
   }
-  if (!res.ok) throw new Error(`드라이브 요청에 실패했어요. (${res.status})`);
+  if (!res.ok && !acceptStatuses.includes(res.status)) throw new Error(`드라이브 요청에 실패했어요. (${res.status})`);
   return res;
 }
 
@@ -65,7 +65,7 @@ export async function downloadSyncFile(): Promise<{ fileId: string; data: SyncFi
     fileId,
     data: {
       version: 1,
-      recipes: Array.isArray(data?.recipes) ? data.recipes.filter(isRecipe) : [],
+      recipes: Array.isArray(data?.recipes) ? data.recipes.filter(isRecipe).map(dropInvalidImageId) : [],
       tombstones: Array.isArray(data?.tombstones) ? data.tombstones.filter(isTombstone) : [],
     },
   };
@@ -84,7 +84,16 @@ const isRecipe = (r: unknown): r is Recipe => {
   );
 };
 
-const isTombstone = (t: unknown): t is Tombstone => {
+export const isValidImageId = (id: unknown): id is string => typeof id === 'string' && /^[\w-]{1,64}$/.test(id);
+
+// imageId 만 깨진 레시피는 버리지 않고 사진만 뗀다. 깨진 값이 남으면 진짜 사진을 고아로 보고 지울 수 있다
+const dropInvalidImageId = (recipe: Recipe): Recipe => {
+  if (recipe.imageId === undefined || isValidImageId(recipe.imageId)) return recipe;
+  const { imageId: _invalid, ...rest } = recipe;
+  return rest;
+};
+
+const isTombstone =(t: unknown): t is Tombstone => {
   const v = t as Partial<Tombstone> | null;
   return typeof v?.id === 'string' && typeof v.deletedAt === 'string';
 };
@@ -147,7 +156,7 @@ export const uploadImageFile = (imageId: string, blob: Blob) => createAppDataFil
 
 /** 드라이브에 없으면 null */
 export async function downloadImageFile(imageId: string): Promise<Blob | null> {
-  if (!/^[\w-]+$/.test(imageId)) return null;
+  if (!isValidImageId(imageId)) return null;
   const q = encodeURIComponent(`name='${imageFileName(imageId)}'`);
   const res = await driveFetch(`${DRIVE_API}/files?spaces=appDataFolder&q=${q}&fields=files(id)`);
   const { files } = (await res.json()) as { files?: { id: string }[] };
@@ -156,6 +165,7 @@ export async function downloadImageFile(imageId: string): Promise<Blob | null> {
   return (await driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`)).blob();
 }
 
+/** 다른 기기가 먼저 지워 404 가 나도 성공으로 본다 */
 export async function deleteDriveFile(fileId: string): Promise<void> {
-  await driveFetch(`${DRIVE_API}/files/${fileId}`, { method: 'DELETE' });
+  await driveFetch(`${DRIVE_API}/files/${fileId}`, { method: 'DELETE' }, [404]);
 }

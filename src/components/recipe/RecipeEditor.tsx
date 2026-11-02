@@ -188,6 +188,12 @@ function MediaFields({ value, onChange }: RecipeEditorProps) {
   const [uploading, setUploading] = useState(false);
   const [imageError, setImageError] = useState<string>();
   const [linkText, setLinkText] = useState(value.source?.url ?? '');
+  // 사진을 줄이는 동안 사용자가 다른 칸을 고칠 수 있어서, 저장이 끝난 시점의 최신 값에 사진을 붙인다
+  const latestValue = useRef(value);
+  latestValue.current = value;
+  // 링크를 고치다 잠깐 틀린 상태를 거쳐도, 같은 영상으로 돌아오면 추출해 둔 제목·채널을 되살린다
+  const lastValidSource = useRef(value.source);
+  if (value.source) lastValidSource.current = value.source;
 
   const sourceUrl = value.source?.url;
   useEffect(() => {
@@ -203,7 +209,7 @@ function MediaFields({ value, onChange }: RecipeEditorProps) {
       onChange({ ...value, source: undefined });
       return;
     }
-    const keep = value.source?.videoId === videoId ? value.source : undefined;
+    const keep = lastValidSource.current?.videoId === videoId ? lastValidSource.current : undefined;
     onChange({ ...value, source: { ...keep, type: 'youtube', url: text.trim(), videoId } });
   };
 
@@ -214,7 +220,8 @@ function MediaFields({ value, onChange }: RecipeEditorProps) {
     setUploading(true);
     setImageError(undefined);
     try {
-      onChange({ ...value, imageId: await saveImage(file) });
+      const imageId = await saveImage(file);
+      onChange({ ...latestValue.current, imageId });
     } catch (err) {
       setImageError(err instanceof Error ? err.message : '사진을 저장하지 못했어요.');
     } finally {

@@ -59,57 +59,61 @@ export async function saveImage(file: File): Promise<string> {
   return id;
 }
 
-const inflight = new Map<string, Promise<Blob | null>>();
+// 드라이브에 아직 없던 사진은 이 시간 동안 다시 찾지 않는다. 카드마다 동기화 때마다 조회하지 않게
+const MISSING_RETRY_MS = 5 * 60 * 1000;
+const missingUntil = new Map<string, number>();
+// 같은 사진을 여러 카드·화면이 쓰므로 주소를 한 번만 만들어 재사용한다. 사진이 작아 페이지가 살아 있는 동안 들고 있어도 된다
+const urlCache = new Map<string, string>();
+const inflight = new Map<string, Promise<string | null>>();
 
-async function fetchImageBlob(imageId: string): Promise<Blob | null> {
+async function resolveImageUrl(imageId: string): Promise<string | null> {
   const local = await db.images.get(imageId);
-  if (local) return local.blob;
-  if (getSyncState().status === 'off') return null;
-  const blob = await downloadImageFile(imageId).catch((e) => {
-    console.warn('[images] download failed', e);
-    return null;
-  });
-  if (blob) await db.images.put({ id: imageId, blob, createdAt: new Date().toISOString() });
-  return blob;
+  let blob = local?.blob ?? null;
+  if (!blob && getSyncState().status !== 'off' && (missingUntil.get(imageId) ?? 0) < Date.now()) {
+    blob = await downloadImageFile(imageId).catch((e) => {
+      console.warn('[images] download failed', e);
+      return null;
+    });
+    if (blob) await db.images.put({ id: imageId, blob, createdAt: new Date().toISOString() });
+    else missingUntil.set(imageId, Date.now() + MISSING_RETRY_MS);
+  }
+  if (!blob) return null;
+  const url = URL.createObjectURL(blob);
+  urlCache.set(imageId, url);
+  return url;
 }
 
-function getImageBlob(imageId: string): Promise<Blob | null> {
+function getImageUrl(imageId: string): Promise<string | null> {
   let pending = inflight.get(imageId);
   if (!pending) {
-    pending = fetchImageBlob(imageId).finally(() => inflight.delete(imageId));
+    pending = resolveImageUrl(imageId).finally(() => inflight.delete(imageId));
     inflight.set(imageId, pending);
   }
   return pending;
 }
 
 /**
- * imageId 의 사진 주소(object URL). 없거나 아직 못 받았으면 undefined.
- * 못 받은 사진은 로그인이 확인되거나 동기화가 끝날 때마다 다시 시도한다 (다른 기기가 사진을 아직 안 올렸을 수 있다)
+ * imageId 의 사진 주소(object URL). 찾는 중이면 undefined, 없으면 null.
+ * 못 찾은 사진은 로그인이 확인되거나 동기화가 끝날 때 다시 시도한다 (다른 기기가 사진을 아직 안 올렸을 수 있다)
  */
-export function useRecipeImage(imageId: string | undefined): string | undefined {
-  const [loaded, setLoaded] = useState<{ imageId: string; url: string }>();
+export function useRecipeImage(imageId: string | undefined): string | null | undefined {
+  const [resolved, setResolved] = useState<{ imageId: string; url: string | null }>();
   const { status, lastSyncedAt } = useSyncState();
   const retryKey = status === 'off' ? -1 : (lastSyncedAt?.getTime() ?? 0);
-  const loadedId = loaded?.imageId;
 
   useEffect(() => {
-    if (!imageId || loadedId === imageId) return;
+    if (!imageId || urlCache.has(imageId)) return;
     let cancelled = false;
-    void getImageBlob(imageId).then((blob) => {
-      if (!cancelled && blob) setLoaded({ imageId, url: URL.createObjectURL(blob) });
+    void getImageUrl(imageId).then((url) => {
+      if (!cancelled) setResolved({ imageId, url });
     });
     return () => {
       cancelled = true;
     };
-  }, [imageId, loadedId, retryKey]);
+  }, [imageId, retryKey]);
 
-  const loadedUrl = loaded?.url;
-  useEffect(
-    () => () => {
-      if (loadedUrl) URL.revokeObjectURL(loadedUrl);
-    },
-    [loadedUrl],
-  );
-
-  return loaded && loaded.imageId === imageId ? loaded.url : undefined;
+  if (!imageId) return null;
+  const cached = urlCache.get(imageId);
+  if (cached) return cached;
+  return resolved?.imageId === imageId ? resolved.url : undefined;
 }
