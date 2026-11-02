@@ -1,6 +1,14 @@
 import type { Recipe } from '@/types';
 import { db, emitRecipesChanged, onRecipesChanged, versionOf, type Tombstone } from '@/data/db';
-import { AuthRequiredError, downloadSyncFile, uploadSyncFile, type SyncFile } from './drive';
+import {
+  AuthRequiredError,
+  deleteDriveFile,
+  downloadSyncFile,
+  listImageFiles,
+  uploadImageFile,
+  uploadSyncFile,
+  type SyncFile,
+} from './drive';
 
 /**
  * 이 기기 IndexedDB ↔ 드라이브 파일 동기화. 매번 양쪽을 레시피 단위로 합친다.
@@ -75,6 +83,32 @@ async function mergeIntoLocal(remote: SyncFile): Promise<{ merged: SyncFile; cha
   });
 }
 
+/**
+ * 어느 레시피에도 안 붙은 사진도 이 시간 동안은 지우지 않는다.
+ * 편집 중 고른 사진(아직 저장 전)과, 다른 기기가 JSON 을 올린 직후 아직 이 기기가 못 받은 사진을 지키기 위해서다.
+ */
+const ORPHAN_IMAGE_GRACE_MS = 24 * 60 * 60 * 1000;
+
+/** 레시피 JSON 을 올린 뒤에 호출한다. 이 기기에만 있는 사진을 올리고, 레시피에서 빠진 사진은 양쪽에서 정리한다 */
+async function syncImages(merged: SyncFile, isCurrent: () => boolean) {
+  const referenced = new Set(merged.recipes.map((r) => r.imageId).filter((id): id is string => !!id));
+  const cutoff = new Date(Date.now() - ORPHAN_IMAGE_GRACE_MS).toISOString();
+  const remote = await listImageFiles();
+  const remoteIds = new Set(remote.map((f) => f.imageId));
+
+  const localImages = await db.images.toArray();
+  for (const image of localImages) {
+    if (!isCurrent()) return;
+    if (referenced.has(image.id) && !remoteIds.has(image.id)) await uploadImageFile(image.id, image.blob);
+  }
+  for (const file of remote) {
+    if (!isCurrent()) return;
+    if (!referenced.has(file.imageId) && file.modifiedTime < cutoff) await deleteDriveFile(file.fileId);
+  }
+  const staleLocal = localImages.filter((image) => !referenced.has(image.id) && image.createdAt < cutoff).map((image) => image.id);
+  if (staleLocal.length) await db.images.bulkDelete(staleLocal);
+}
+
 const OWNER_KEY = 'recipe-note:sync-owner';
 
 /**
@@ -141,6 +175,7 @@ async function runOnce() {
       if (gen !== generation) return;
       await uploadSyncFile(merged, remote?.fileId ?? null);
     }
+    await syncImages(merged, () => gen === generation);
     if (gen === generation) lastSyncedAt = new Date();
     settle('idle');
   } catch (e) {

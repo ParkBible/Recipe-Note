@@ -8,13 +8,13 @@ import styles from './recipe.module.css';
  * 클릭 전에는 썸네일만 보여주고(가벼움), 클릭하면 youtube-nocookie iframe 으로 교체한다.
  * source 가 없으면 플레이스홀더만.
  */
-export function YoutubeEmbed({ source, title }: { source?: RecipeSource; title: string }) {
+export function YoutubeEmbed({ source, imageId, title }: { source?: RecipeSource; imageId?: string; title: string }) {
   const [playing, setPlaying] = useState(false);
 
   if (!source) {
     return (
       <div className={styles.embed}>
-        <RecipeThumbnail title={title} large className={styles.embedThumb} />
+        <RecipeThumbnail imageId={imageId} title={title} large className={styles.embedThumb} />
       </div>
     );
   }
@@ -30,7 +30,7 @@ export function YoutubeEmbed({ source, title }: { source?: RecipeSource; title: 
         />
       ) : (
         <button type="button" className={styles.embedButton} onClick={() => setPlaying(true)} aria-label={`${title} 영상 재생`}>
-          <RecipeThumbnail source={source} title={title} showPlay large className={styles.embedThumb} />
+          <RecipeThumbnail source={source} imageId={imageId} title={title} showPlay large className={styles.embedThumb} />
         </button>
       )}
     </div>

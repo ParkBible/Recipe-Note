@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { RecipeSource } from '@/types';
+import { useRecipeImage } from '@/data/images';
 import { cx } from '@/lib/cx';
 import { youtubeThumbnailUrl } from '@/lib/youtube';
 import { Icon } from '@/components/ui';
@@ -16,6 +17,8 @@ function pickTone(seed: string) {
 
 export interface RecipeThumbnailProps {
   source?: RecipeSource;
+  /** 직접 올린 사진. 있으면 영상 썸네일보다 먼저 쓴다 */
+  imageId?: string;
   title: string;
   /** 재생 버튼 오버레이 표시 */
   showPlay?: boolean;
@@ -24,9 +27,12 @@ export interface RecipeThumbnailProps {
 }
 
 /** 16:9 썸네일. 이미지가 없거나 로드 실패하면 단색 블록 + 재료 알약 무늬 플레이스홀더 */
-export function RecipeThumbnail({ source, title, showPlay, large, className }: RecipeThumbnailProps) {
+export function RecipeThumbnail({ source, imageId, title, showPlay, large, className }: RecipeThumbnailProps) {
   const [failed, setFailed] = useState(false);
-  const src = source?.thumbnailUrl ?? (source ? youtubeThumbnailUrl(source.videoId) : undefined);
+  const imageUrl = useRecipeImage(imageId);
+  const videoThumbUrl = source?.thumbnailUrl ?? (source ? youtubeThumbnailUrl(source.videoId) : undefined);
+  const src = imageUrl ?? videoThumbUrl;
+  useEffect(() => setFailed(false), [src]);
   // 편집 중 제목이 바뀌어도 색이 튀지 않게 videoId 를 우선 쓴다
   const tone = pickTone(source?.videoId ?? title);
 
@@ -40,7 +46,7 @@ export function RecipeThumbnail({ source, title, showPlay, large, className }: R
           loading="lazy"
           onError={() => setFailed(true)}
           // 존재하지 않는 영상이면 유튜브가 404 대신 120x90 회색 기본 이미지를 준다
-          onLoad={(e) => e.currentTarget.naturalWidth <= 120 && setFailed(true)}
+          onLoad={(e) => !imageUrl && e.currentTarget.naturalWidth <= 120 && setFailed(true)}
         />
       ) : (
         <div className={cx(styles.placeholder, tone)}>

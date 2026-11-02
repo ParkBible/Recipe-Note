@@ -74,7 +74,7 @@ export function RecommendationCard({ recommendation }: { recommendation: Recomme
   return (
     <Card as="article" padding="none" className={styles.recCard}>
       <Link to={href} className={styles.recThumbLink} tabIndex={-1} aria-hidden>
-        <RecipeThumbnail source={recipe.source} title={recipe.title} className={styles.recThumb} />
+        <RecipeThumbnail source={recipe.source} imageId={recipe.imageId} title={recipe.title} className={styles.recThumb} />
       </Link>
       <div className={styles.recBody}>
         <div className={styles.recTitleRow}>

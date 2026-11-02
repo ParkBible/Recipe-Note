@@ -47,6 +47,8 @@ export interface Recipe {
   ingredients: Ingredient[];
   steps: RecipeStep[];
   source?: RecipeSource;
+  /** 직접 올린 대표 사진. 이미지 본문은 IndexedDB images 테이블과 드라이브 별도 파일에 있다 (data/images.ts) */
+  imageId?: string;
   /** ISO 8601 */
   createdAt: string;
   updatedAt?: string;

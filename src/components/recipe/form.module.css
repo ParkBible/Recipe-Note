@@ -128,3 +128,38 @@
     padding: 0;
   }
 }
+
+.media {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+.mediaPreview {
+  overflow: hidden;
+  border-radius: var(--radius-md);
+}
+
+.mediaFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mediaActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.mediaError {
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 640px) {
+  .media {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

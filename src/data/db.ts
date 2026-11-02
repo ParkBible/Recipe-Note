@@ -12,14 +12,26 @@ export interface Tombstone {
   deletedAt: string;
 }
 
+export interface StoredImage {
+  id: string;
+  blob: Blob;
+  /** ISO 8601. 아직 어느 레시피에도 안 붙은 사진을 언제 정리할지 정하는 기준 */
+  createdAt: string;
+}
+
 export const db = new Dexie('recipe-note') as Dexie & {
   recipes: EntityTable<Recipe, 'id'>;
   tombstones: EntityTable<Tombstone, 'id'>;
+  images: EntityTable<StoredImage, 'id'>;
 };
 
 db.version(1).stores({
   recipes: 'id, createdAt',
   tombstones: 'id',
+});
+
+db.version(2).stores({
+  images: 'id',
 });
 
 /** 동기화 병합에서 어느 쪽이 최신인지 비교하는 시각 */

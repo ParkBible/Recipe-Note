@@ -27,6 +27,7 @@ const draftSchema = z.object({
       thumbnailUrl: optionalText,
     })
     .optional(),
+  imageId: optionalText,
 });
 
 export const randomId = (bytes: number) => {

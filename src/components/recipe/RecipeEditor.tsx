@@ -1,7 +1,10 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import type { Difficulty, Ingredient, RecipeDraft, RecipeStep } from '@/types';
 import { Button, Input, Textarea } from '@/components/ui';
+import { saveImage } from '@/data/images';
+import { parseYoutubeVideoId } from '@/lib/youtube';
 import { DIFFICULTY_LABEL } from './RecipeMeta';
+import { RecipeThumbnail } from './RecipeThumbnail';
 import styles from './form.module.css';
 
 export interface RecipeEditorProps {
@@ -80,6 +83,7 @@ export function RecipeEditor({ value, onChange }: RecipeEditorProps) {
             </select>
           </div>
         </div>
+        <MediaFields value={value} onChange={onChange} />
         <Input
           label="태그"
           hint="쉼표로 구분"
@@ -175,6 +179,77 @@ export function RecipeEditor({ value, onChange }: RecipeEditorProps) {
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+function MediaFields({ value, onChange }: RecipeEditorProps) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [imageError, setImageError] = useState<string>();
+  const [linkText, setLinkText] = useState(value.source?.url ?? '');
+
+  const sourceUrl = value.source?.url;
+  useEffect(() => {
+    if (sourceUrl !== undefined) setLinkText(sourceUrl);
+  }, [sourceUrl]);
+
+  const linkError = linkText.trim() && !parseYoutubeVideoId(linkText) ? '유튜브 영상 링크를 확인해 주세요.' : undefined;
+
+  const changeLink = (text: string) => {
+    setLinkText(text);
+    const videoId = parseYoutubeVideoId(text);
+    if (!videoId) {
+      onChange({ ...value, source: undefined });
+      return;
+    }
+    const keep = value.source?.videoId === videoId ? value.source : undefined;
+    onChange({ ...value, source: { ...keep, type: 'youtube', url: text.trim(), videoId } });
+  };
+
+  const pickImage = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploading(true);
+    setImageError(undefined);
+    try {
+      onChange({ ...value, imageId: await saveImage(file) });
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : '사진을 저장하지 못했어요.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className={styles.media}>
+      <div className={styles.mediaPreview}>
+        <RecipeThumbnail source={value.source} imageId={value.imageId} title={value.title} />
+      </div>
+      <div className={styles.mediaFields}>
+        <div className={styles.mediaActions}>
+          <input ref={fileInput} type="file" accept="image/*" hidden onChange={(e) => void pickImage(e)} />
+          <Button variant="secondary" size="sm" icon="plus" loading={uploading} onClick={() => fileInput.current?.click()}>
+            {value.imageId ? '사진 바꾸기' : '사진 추가'}
+          </Button>
+          {value.imageId && (
+            <Button variant="ghost" size="sm" icon="trash" onClick={() => onChange({ ...value, imageId: undefined })}>
+              사진 빼기
+            </Button>
+          )}
+        </div>
+        {imageError && <p className={styles.mediaError}>{imageError}</p>}
+        <Input
+          label="유튜브 링크"
+          icon="link"
+          placeholder="https://youtu.be/..."
+          hint={value.imageId ? '사진이 있으면 사진을 썸네일로 써요.' : '사진이 없으면 영상 썸네일을 써요.'}
+          error={linkError}
+          value={linkText}
+          onChange={(e) => changeLink(e.target.value)}
+        />
+      </div>
     </div>
   );
 }

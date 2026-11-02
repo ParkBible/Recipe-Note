@@ -15,7 +15,7 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
   return (
     <Card as="article" padding="none" interactive>
       <Link to={`/recipes/${recipe.id}`} className={styles.cardLink}>
-        <RecipeThumbnail source={recipe.source} title={recipe.title} showPlay />
+        <RecipeThumbnail source={recipe.source} imageId={recipe.imageId} title={recipe.title} showPlay />
         <div className={styles.cardBody}>
           <h3 className={styles.cardTitle}>{recipe.title}</h3>
           <RecipeMeta recipe={recipe} />

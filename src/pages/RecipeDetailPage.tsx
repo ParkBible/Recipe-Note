@@ -156,7 +156,7 @@ export function RecipeDetailPage() {
     <article>
       {back}
       <div className={styles.detailHero}>
-        <YoutubeEmbed source={source} title={recipe.title} />
+        <YoutubeEmbed source={source} imageId={recipe.imageId} title={recipe.title} />
         <div className={styles.detailInfo}>
           <h1 className={styles.detailTitle}>{recipe.title}</h1>
           <RecipeMeta recipe={recipe} />

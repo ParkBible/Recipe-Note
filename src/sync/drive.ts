@@ -89,6 +89,13 @@ const isTombstone = (t: unknown): t is Tombstone => {
   return typeof v?.id === 'string' && typeof v.deletedAt === 'string';
 };
 
+async function createAppDataFile(name: string, content: Blob): Promise<void> {
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify({ name, parents: ['appDataFolder'] })], { type: 'application/json' }));
+  form.append('file', content);
+  await driveFetch(`${UPLOAD_API}/files?uploadType=multipart`, { method: 'POST', body: form });
+}
+
 /** fileId 가 있으면 덮어쓰고, 없으면 appDataFolder 에 새로 만든다 */
 export async function uploadSyncFile(data: SyncFile, fileId: string | null): Promise<void> {
   const body = JSON.stringify(data);
@@ -100,11 +107,55 @@ export async function uploadSyncFile(data: SyncFile, fileId: string | null): Pro
     });
     return;
   }
-  const form = new FormData();
-  form.append(
-    'metadata',
-    new Blob([JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] })], { type: 'application/json' }),
-  );
-  form.append('file', new Blob([body], { type: 'application/json' }));
-  await driveFetch(`${UPLOAD_API}/files?uploadType=multipart`, { method: 'POST', body: form });
+  await createAppDataFile(FILE_NAME, new Blob([body], { type: 'application/json' }));
+}
+
+// 사진은 동기화 JSON 에 넣지 않고 사진마다 별도 파일로 둔다. JSON 을 매번 통째로 주고받으므로 사진이 들어가면 동기화가 무거워진다
+const IMAGE_PREFIX = 'recipe-note-image-';
+const imageFileName = (imageId: string) => `${IMAGE_PREFIX}${imageId}`;
+
+export interface DriveImageFile {
+  fileId: string;
+  imageId: string;
+  modifiedTime: string;
+}
+
+export async function listImageFiles(): Promise<DriveImageFile[]> {
+  const files: DriveImageFile[] = [];
+  let pageToken: string | undefined;
+  do {
+    const params = new URLSearchParams({
+      spaces: 'appDataFolder',
+      q: `name contains '${IMAGE_PREFIX}'`,
+      fields: 'nextPageToken,files(id,name,modifiedTime)',
+      pageSize: '1000',
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+    const res = await driveFetch(`${DRIVE_API}/files?${params}`);
+    const page = (await res.json()) as { files?: { id: string; name: string; modifiedTime: string }[]; nextPageToken?: string };
+    for (const file of page.files ?? []) {
+      if (file.name.startsWith(IMAGE_PREFIX)) {
+        files.push({ fileId: file.id, imageId: file.name.slice(IMAGE_PREFIX.length), modifiedTime: file.modifiedTime });
+      }
+    }
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+  return files;
+}
+
+export const uploadImageFile = (imageId: string, blob: Blob) => createAppDataFile(imageFileName(imageId), blob);
+
+/** 드라이브에 없으면 null */
+export async function downloadImageFile(imageId: string): Promise<Blob | null> {
+  if (!/^[\w-]+$/.test(imageId)) return null;
+  const q = encodeURIComponent(`name='${imageFileName(imageId)}'`);
+  const res = await driveFetch(`${DRIVE_API}/files?spaces=appDataFolder&q=${q}&fields=files(id)`);
+  const { files } = (await res.json()) as { files?: { id: string }[] };
+  const fileId = files?.[0]?.id;
+  if (!fileId) return null;
+  return (await driveFetch(`${DRIVE_API}/files/${fileId}?alt=media`)).blob();
+}
+
+export async function deleteDriveFile(fileId: string): Promise<void> {
+  await driveFetch(`${DRIVE_API}/files/${fileId}`, { method: 'DELETE' });
 }
