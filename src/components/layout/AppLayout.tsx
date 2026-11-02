@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { cx } from '@/lib/cx';
 import { useTheme, type ThemeMode } from '@/hooks/useTheme';
-import { Button, Icon, type IconName } from '@/components/ui';
+import { Button, ButtonAnchor, Icon, type IconName } from '@/components/ui';
 import { SyncControl } from './SyncControl';
 import styles from './AppLayout.module.css';
 
@@ -10,6 +10,9 @@ const NAV_ITEMS: Array<{ to: string; label: string; icon: IconName; end?: boolea
   { to: '/add', label: '레시피 추가', icon: 'plus' },
   { to: '/fridge', label: '냉장고 추천', icon: 'fridge' },
 ];
+
+// 내 서비스 모음 대시보드 (Park-Hub)
+const HUB_URL = 'https://park-hub-blush.vercel.app';
 
 const THEME_META: Record<ThemeMode, { icon: IconName; label: string }> = {
   light: { icon: 'sun', label: '라이트 모드 (눌러서 다크로)' },
@@ -46,6 +49,7 @@ export function AppLayout() {
           </nav>
           <div className={styles.spacer} />
           <SyncControl />
+          <ButtonAnchor variant="ghost" iconOnly icon="grid" href={HUB_URL} target="_self" aria-label="허브로 이동" title="허브로 이동" />
           <Button variant="ghost" iconOnly icon={theme.icon} onClick={cycle} aria-label={theme.label} title={theme.label} />
         </div>
       </header>
