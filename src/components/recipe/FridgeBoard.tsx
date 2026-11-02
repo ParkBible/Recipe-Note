@@ -39,8 +39,6 @@ export function FridgeBoard({ value, onChange, mustUse = [], onToggleMustUse }: 
     if (e.key === ',') {
       e.preventDefault();
       add(draft);
-    } else if (e.key === 'Backspace' && !draft && value.length) {
-      remove(value[value.length - 1]);
     }
   };
 
@@ -114,7 +112,7 @@ export function FridgeBoard({ value, onChange, mustUse = [], onToggleMustUse }: 
           </Button>
         </div>
         <p id={hintId} className={styles.drawerHint}>
-          쉼표로 여러 개를 한 번에 넣을 수 있어요. 빈 칸에서 지우기(⌫)를 누르면 마지막 재료가 빠져요.
+          쉼표로 여러 개를 한 번에 넣을 수 있어요.
         </p>
       </form>
     </section>
