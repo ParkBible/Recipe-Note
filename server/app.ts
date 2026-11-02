@@ -6,6 +6,7 @@ import { HttpError } from './errors.js';
 import { suggestRecipes } from './aiRecommend.js';
 import { MAX_TEXT_LENGTH, extractRecipe, extractRecipeFromText } from './extract.js';
 import { hasLlmKey } from './llm.js';
+import { evaluateHealth } from './health.js';
 
 /**
  * API 라우트. 레시피 저장·검색·추천은 브라우저(IndexedDB)가 하고, 서버는 LLM 키가 필요한 일과 구글 로그인만 맡는다.
@@ -29,6 +30,29 @@ app.route('/auth', authRoutes);
 app.use('/extract/*', requireUser);
 app.use('/extract', requireUser);
 app.use('/recommendations/*', requireUser);
+app.use('/health-review', requireUser);
+
+app.post('/health-review', async (c) => {
+  const body = z
+    .object({
+      title: z.string(),
+      servings: z.number().int().positive().optional(),
+      ingredients: z.array(z.object({ name: z.string(), amount: z.string().optional(), optional: z.boolean().optional() })),
+      steps: z.array(z.string()),
+    })
+    .catch({ title: '', ingredients: [], steps: [] })
+    .parse(await readJson(c));
+  const ingredients = body.ingredients
+    .map((i) => ({ name: i.name.trim(), amount: i.amount?.trim() || undefined, optional: i.optional }))
+    .filter((i) => i.name);
+  if (!ingredients.length) throw new HttpError(400, '재료가 있어야 평가할 수 있어요.');
+  // LLM 비용을 묶기 위해 입력 크기를 제한한다
+  if (ingredients.length > 80 || body.steps.length > 60 || ingredients.some((i) => i.name.length > 50 || (i.amount?.length ?? 0) > 50)) {
+    throw new HttpError(400, '재료·단계가 너무 많거나 길어요.');
+  }
+  const steps = body.steps.map((s) => s.trim().slice(0, 500)).filter(Boolean);
+  return c.json(await evaluateHealth({ title: body.title.trim().slice(0, 100), servings: body.servings, ingredients, steps }));
+});
 
 app.post('/extract', async (c) => {
   const { url } = z.object({ url: z.string() }).catch({ url: '' }).parse(await readJson(c));

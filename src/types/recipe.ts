@@ -36,6 +36,21 @@ export interface YoutubeSource {
 
 export type RecipeSource = YoutubeSource;
 
+export interface HealthScore {
+  /** 1~10. 높을수록 그 관점에서 좋다 */
+  score: number;
+  reason: string;
+}
+
+export interface HealthReview {
+  bloodSugar: HealthScore;
+  diet: HealthScore;
+  /** 평가할 때의 재료 지문. 지금 재료와 다르면 평가가 낡은 것 */
+  basis: string;
+  /** ISO 8601 */
+  evaluatedAt: string;
+}
+
 export interface Recipe {
   id: string;
   title: string;
@@ -47,6 +62,8 @@ export interface Recipe {
   ingredients: Ingredient[];
   steps: RecipeStep[];
   source?: RecipeSource;
+  /** AI 가 매긴 혈당·다이어트 관점 평가. 재료가 바뀌면 basis 가 달라져 '다시 평가' 대상이 된다 (lib/health.ts) */
+  health?: HealthReview;
   /** 직접 올린 대표 사진. 이미지 본문은 IndexedDB images 테이블과 드라이브 별도 파일에 있다 (data/images.ts) */
   imageId?: string;
   /** ISO 8601 */

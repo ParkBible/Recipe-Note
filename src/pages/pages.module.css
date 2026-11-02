@@ -479,3 +479,7 @@
 .previewWarnings {
   margin-bottom: var(--space-6);
 }
+
+.healthCard {
+  margin-top: var(--space-8);
+}

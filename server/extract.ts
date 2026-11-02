@@ -3,6 +3,7 @@ import type { ExtractionResult, RecipeDraft } from '../src/types/recipe.js';
 import { HttpError } from './errors.js';
 import { fetchVideo, type VideoData } from './youtube.js';
 import { generateStructured } from './llm.js';
+import { HEALTH_GUIDE, healthSchema, toHealthReview } from './health.js';
 
 /**
  * 유튜브 영상 → RecipeDraft. 설명란·자막을 LLM 에 넘기고 JSON 스키마에 맞춘 결과로 받는다.
@@ -33,6 +34,7 @@ const extractionSchema = z.object({
   ),
   usedSources: z.array(z.enum(['description', 'captions'])).describe('실제로 레시피 근거로 쓴 자료'),
   warnings: z.array(z.string()).describe('사용자가 저장 전에 확인해야 할 점. 한국어 한 문장씩'),
+  health: healthSchema,
 });
 
 const SYSTEM_PROMPT = `너는 요리 영상의 설명란과 자막에서 레시피를 정리하는 도우미다.
@@ -44,7 +46,8 @@ const SYSTEM_PROMPT = `너는 요리 영상의 설명란과 자막에서 레시�
 - timestampSec 은 자막의 [m:ss] 표시나 설명란의 챕터 시간 등 근거가 있을 때만 채우고, 추측하지 않는다.
 - 설명란 링크·광고·협찬·구독 안내는 무시한다.
 - 자료에 레시피가 없으면 isRecipe 를 false 로 하고 나머지는 비워 둔다.
-- 분량이 빠진 재료가 많거나, 단계가 자료에서 불분명해 보충했다면 warnings 에 적는다.`;
+- 분량이 빠진 재료가 많거나, 단계가 자료에서 불분명해 보충했다면 warnings 에 적는다.
+${HEALTH_GUIDE}`;
 
 const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
 
@@ -75,7 +78,8 @@ const TEXT_SYSTEM_PROMPT = `너는 사용자가 자유롭게 적은 글(메모, 
 - 조리 단계는 실제로 따라 할 수 있는 동작 단위로 나누고, 한국어 존댓말 없는 평서문("~한다")으로 쓴다.
 - 제목이 없으면 내용에 맞는 요리 이름을 붙인다.
 - 글에 레시피가 없으면 isRecipe 를 false 로 하고 나머지는 비워 둔다.
-- 분량이 빠진 재료가 많거나, 글에서 불분명해 보충한 단계가 있으면 warnings 에 적는다.`;
+- 분량이 빠진 재료가 많거나, 글에서 불분명해 보충한 단계가 있으면 warnings 에 적는다.
+${HEALTH_GUIDE}`;
 
 export const MAX_TEXT_LENGTH = 20000;
 
@@ -105,6 +109,7 @@ export async function extractRecipeFromText(text: string): Promise<ExtractionRes
     })),
     steps: out.steps.map((s, idx) => ({ id: `step-${idx + 1}`, order: idx + 1, description: s.description })),
   };
+  draft.health = toHealthReview(out.health, draft.ingredients);
   return { draft, extractedFrom: ['text'], warnings: [...new Set(out.warnings)] };
 }
 
@@ -163,6 +168,8 @@ function toResult(video: VideoData, out: Extraction): ExtractionResult {
       thumbnailUrl: video.thumbnailUrl,
     },
   };
+
+  draft.health = toHealthReview(out.health, draft.ingredients);
 
   const extractedFrom = out.usedSources.filter(
     (s) => (s === 'description' && video.description.trim()) || (s === 'captions' && video.captions),

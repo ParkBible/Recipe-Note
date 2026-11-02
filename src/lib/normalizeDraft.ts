@@ -28,6 +28,14 @@ const draftSchema = z.object({
     })
     .optional(),
   imageId: optionalText,
+  health: z
+    .object({
+      bloodSugar: z.object({ score: z.number(), reason: z.string() }),
+      diet: z.object({ score: z.number(), reason: z.string() }),
+      basis: z.string(),
+      evaluatedAt: z.string(),
+    })
+    .optional(),
 });
 
 export const randomId = (bytes: number) => {

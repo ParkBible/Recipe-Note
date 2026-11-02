@@ -7,7 +7,7 @@ import { validateDraft } from '@/lib/recipeDraft';
 import { usePreviewState } from '@/hooks/usePreviewState';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button, Card, Chip, ErrorMessage, Icon, Input, Skeleton, SkeletonText, Spinner, Textarea, errorListClass } from '@/components/ui';
-import { RecipeEditor, RecipeThumbnail } from '@/components/recipe';
+import { HealthPanel, RecipeEditor, RecipeThumbnail } from '@/components/recipe';
 import styles from './pages.module.css';
 
 type Phase = 'input' | 'extracting' | 'review' | 'error';
@@ -280,6 +280,10 @@ export function AddRecipePage() {
                   ))}
                 </ul>
               </ErrorMessage>
+            )}
+
+            {draft.health && (
+              <HealthPanel health={draft.health} ingredients={draft.ingredients} className={styles.previewWarnings} />
             )}
 
             <div>

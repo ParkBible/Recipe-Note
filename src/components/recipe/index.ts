@@ -8,3 +8,4 @@ export * from './RecipeThumbnail';
 export * from './RecommendationCard';
 export * from './StepList';
 export * from './YoutubeEmbed';
+export * from './HealthReview';

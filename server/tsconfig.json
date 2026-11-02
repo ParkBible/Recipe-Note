@@ -14,5 +14,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["./**/*.ts", "../src/types/**/*.ts", "../src/lib/youtube.ts", "../src/lib/ingredients.ts", "../src/lib/recommend.ts", "../api/**/*.ts"]
+  "include": ["./**/*.ts", "../src/types/**/*.ts", "../src/lib/youtube.ts", "../src/lib/ingredients.ts", "../src/lib/recommend.ts", "../src/lib/health.ts", "../api/**/*.ts"]
 }

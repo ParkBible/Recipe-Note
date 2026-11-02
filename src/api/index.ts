@@ -1,4 +1,4 @@
-import type { AiSuggestion, ExtractionResult, Recipe, RecipeDraft, Recommendation } from '@/types';
+import type { AiSuggestion, ExtractionResult, HealthReview, Recipe, RecipeDraft, Recommendation } from '@/types';
 import * as store from '@/data/recipes';
 import { recommend } from '@/lib/recommend';
 
@@ -69,6 +69,19 @@ export function saveRecipe(draft: RecipeDraft): Promise<Recipe> {
 /** 저장된 레시피 수정 */
 export function updateRecipe(id: string, draft: RecipeDraft): Promise<Recipe> {
   return store.updateRecipe(id, draft);
+}
+
+/** 레시피를 혈당·다이어트 관점에서 AI 로 평가. LLM 을 호출하므로 사용자가 요청할 때만 부른다 */
+export function evaluateRecipeHealth(recipe: RecipeDraft): Promise<HealthReview> {
+  return request(
+    '/health-review',
+    json('POST', {
+      title: recipe.title,
+      servings: recipe.servings,
+      ingredients: recipe.ingredients.map(({ name, amount, optional }) => ({ name, amount, optional })),
+      steps: recipe.steps.map((s) => s.description),
+    }),
+  );
 }
 
 /** 레시피 삭제 */

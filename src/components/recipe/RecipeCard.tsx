@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { Recipe } from '@/types';
 import { Card, Chip, Skeleton, SkeletonText } from '@/components/ui';
+import { HealthBadges } from './HealthReview';
 import { RecipeMeta } from './RecipeMeta';
 import { RecipeThumbnail } from './RecipeThumbnail';
 import styles from './recipe.module.css';
@@ -19,6 +20,11 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
         <div className={styles.cardBody}>
           <h3 className={styles.cardTitle}>{recipe.title}</h3>
           <RecipeMeta recipe={recipe} />
+          {recipe.health && (
+            <div className={styles.chipRow} aria-label="건강 평가 (10점 만점)">
+              <HealthBadges health={recipe.health} />
+            </div>
+          )}
           {recipe.description && <p className={styles.cardDescription}>{recipe.description}</p>}
           <div className={styles.chipRow} aria-label="주요 재료">
             {shown.map((i) => (

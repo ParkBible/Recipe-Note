@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { AsyncStatus, Recipe, RecipeDraft } from '@/types';
-import { deleteRecipe, getRecipe, updateRecipe } from '@/api';
+import { deleteRecipe, evaluateRecipeHealth, getRecipe, updateRecipe } from '@/api';
 import { onRecipesChanged } from '@/data/db';
 import { validateDraft } from '@/lib/recipeDraft';
 import { usePreviewState } from '@/hooks/usePreviewState';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ButtonAnchor, Button, ButtonLink, Card, Chip, EmptyState, ErrorMessage, Icon, Skeleton, SkeletonText } from '@/components/ui';
-import { IngredientList, RecipeEditor, RecipeMeta, StepList, YoutubeEmbed } from '@/components/recipe';
+import { HealthPanel, IngredientList, RecipeEditor, RecipeMeta, StepList, YoutubeEmbed } from '@/components/recipe';
 import recipeStyles from '@/components/recipe/recipe.module.css';
 import styles from './pages.module.css';
 
@@ -25,6 +25,8 @@ export function RecipeDetailPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>();
+  const [evaluating, setEvaluating] = useState(false);
+  const [healthError, setHealthError] = useState<string>();
 
   const load = useCallback(() => {
     const controller = new AbortController();
@@ -69,6 +71,23 @@ export function RecipeDetailPage() {
       setEditError(e instanceof Error ? e.message : '저장하지 못했어요. 다시 시도해 주세요.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleEvaluate = async () => {
+    if (!recipe || evaluating) return;
+    setEvaluating(true);
+    setHealthError(undefined);
+    try {
+      const health = await evaluateRecipeHealth(recipe);
+      // 평가하는 동안 동기화로 바뀌었을 수 있어 최신 레시피에 평가만 붙인다
+      const latest = (await getRecipe(id)) ?? recipe;
+      const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...draft } = latest;
+      setRecipe(await updateRecipe(id, { ...draft, health }));
+    } catch (e) {
+      setHealthError(e instanceof Error ? e.message : '평가하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setEvaluating(false);
     }
   };
 
@@ -227,6 +246,16 @@ export function RecipeDetailPage() {
           <StepList steps={recipe.steps} videoId={source?.videoId} />
         </section>
       </div>
+
+      <Card padding="lg" className={styles.healthCard}>
+        <HealthPanel
+          health={recipe.health}
+          ingredients={recipe.ingredients}
+          onEvaluate={() => void handleEvaluate()}
+          evaluating={evaluating}
+          error={healthError}
+        />
+      </Card>
     </article>
   );
 }
