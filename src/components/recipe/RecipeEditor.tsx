@@ -47,6 +47,13 @@ export function RecipeEditor({ value, onChange }: RecipeEditorProps) {
           value={value.description ?? ''}
           onChange={(e) => set('description', e.target.value)}
         />
+        <Textarea
+          label="내 메모"
+          rows={2}
+          placeholder="맛 평가, 다음에 바꿔 볼 점 등"
+          value={value.memo ?? ''}
+          onChange={(e) => set('memo', e.target.value)}
+        />
         <div className={styles.row2}>
           <Input
             label="인분"

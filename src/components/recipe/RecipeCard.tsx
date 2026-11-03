@@ -19,12 +19,14 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
         <RecipeThumbnail source={recipe.source} imageId={recipe.imageId} title={recipe.title} showPlay />
         <div className={styles.cardBody}>
           <h3 className={styles.cardTitle}>{recipe.title}</h3>
-          <RecipeMeta recipe={recipe} />
-          {recipe.health && (
-            <div className={styles.chipRow} aria-label="건강 평가 (10점 만점)">
-              <HealthBadges health={recipe.health} />
-            </div>
-          )}
+          <div className={styles.metaRow}>
+            <RecipeMeta recipe={recipe} />
+            {recipe.health && (
+              <div className={styles.chipRow} aria-label="건강 평가 (10점 만점)">
+                <HealthBadges health={recipe.health} />
+              </div>
+            )}
+          </div>
           {recipe.description && <p className={styles.cardDescription}>{recipe.description}</p>}
           <div className={styles.chipRow} aria-label="주요 재료">
             {shown.map((i) => (
@@ -39,7 +41,7 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
             )}
           </div>
           <div className={styles.cardFooter}>
-            <span className={styles.channel}>{recipe.source?.channelName ?? '직접 입력'}</span>
+            <span className={styles.channel}>{recipe.memo ?? recipe.source?.channelName}</span>
             <time dateTime={recipe.createdAt}>{created}</time>
           </div>
         </div>

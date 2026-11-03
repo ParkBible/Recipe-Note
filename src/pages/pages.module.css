@@ -70,6 +70,17 @@
   line-height: var(--line-height-relaxed);
 }
 
+.detailMemo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken);
+  white-space: pre-wrap;
+  line-height: var(--line-height-relaxed);
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

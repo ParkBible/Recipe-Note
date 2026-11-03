@@ -6,8 +6,8 @@ import type { ChipTone } from '@/components/ui/Chip';
 import styles from './HealthReview.module.css';
 
 const ASPECTS = [
-  { key: 'bloodSugar', label: '혈당' },
-  { key: 'diet', label: '다이어트' },
+  { key: 'bloodSugar', label: '혈당', emoji: '🩸' },
+  { key: 'diet', label: '다이어트', emoji: '🥗' },
 ] as const;
 
 const CHIP_TONE: Record<ScoreLevel, ChipTone> = { good: 'success', fair: 'neutral', poor: 'warning' };
@@ -17,9 +17,11 @@ export function HealthBadges({ health }: { health?: HealthReview }) {
   if (!health) return null;
   return (
     <>
-      {ASPECTS.map(({ key, label }) => (
+      {ASPECTS.map(({ key, label, emoji }) => (
         <Chip key={key} size="sm" tone={CHIP_TONE[scoreLevel(health[key])]}>
-          {label} {health[key].score}
+          <span title={`${label} ${health[key].score}/10`} aria-label={`${label} ${health[key].score}점`}>
+            {emoji} {health[key].score}
+          </span>
         </Chip>
       ))}
     </>

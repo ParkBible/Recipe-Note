@@ -186,6 +186,12 @@ export function RecipeDetailPage() {
           <h1 className={styles.detailTitle}>{recipe.title}</h1>
           <RecipeMeta recipe={recipe} />
           {recipe.description && <p className={styles.detailDescription}>{recipe.description}</p>}
+          {recipe.memo && (
+            <p className={styles.detailMemo}>
+              <span className={styles.sourceLabel}>내 메모</span>
+              {recipe.memo}
+            </p>
+          )}
           {recipe.tags.length > 0 && (
             <div className={styles.chips}>
               {recipe.tags.map((t) => (
