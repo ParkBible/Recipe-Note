@@ -1,6 +1,7 @@
 import type { AiSuggestion, ExtractionResult, HealthReview, Recipe, RecipeDraft, Recommendation } from '@/types';
 import * as store from '@/data/recipes';
 import { recommend } from '@/lib/recommend';
+import { ingredientBasis } from '@/lib/health';
 
 /**
  * 화면이 호출하는 데이터 경계.
@@ -72,8 +73,8 @@ export function updateRecipe(id: string, draft: RecipeDraft): Promise<Recipe> {
 }
 
 /** 레시피를 혈당·다이어트 관점에서 AI 로 평가. LLM 을 호출하므로 사용자가 요청할 때만 부른다 */
-export function evaluateRecipeHealth(recipe: RecipeDraft): Promise<HealthReview> {
-  return request(
+export async function evaluateRecipeHealth(recipe: RecipeDraft): Promise<HealthReview> {
+  const review = await request<HealthReview>(
     '/health-review',
     json('POST', {
       title: recipe.title,
@@ -82,6 +83,8 @@ export function evaluateRecipeHealth(recipe: RecipeDraft): Promise<HealthReview>
       steps: recipe.steps.map((s) => s.description),
     }),
   );
+  // 서버는 긴 재료를 잘라 평가하므로, 바뀜 판단 기준은 화면의 재료로 다시 잡는다
+  return { ...review, basis: ingredientBasis(recipe.ingredients) };
 }
 
 /** 레시피 삭제 */

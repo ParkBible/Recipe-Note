@@ -1,5 +1,6 @@
 import type { Recipe } from '@/types';
 import type { Tombstone } from '@/data/db';
+import { parseHealthReview } from '@/lib/health';
 
 /**
  * 구글 드라이브 appDataFolder 의 동기화 파일 하나를 읽고 쓴다. appDataFolder 는 이 앱만 보는 숨김 폴더라
@@ -65,7 +66,7 @@ export async function downloadSyncFile(): Promise<{ fileId: string; data: SyncFi
     fileId,
     data: {
       version: 1,
-      recipes: Array.isArray(data?.recipes) ? data.recipes.filter(isRecipe).map(dropInvalidImageId) : [],
+      recipes: Array.isArray(data?.recipes) ? data.recipes.filter(isRecipe).map(dropInvalidImageId).map(dropInvalidHealth) : [],
       tombstones: Array.isArray(data?.tombstones) ? data.tombstones.filter(isTombstone) : [],
     },
   };
@@ -91,6 +92,13 @@ const dropInvalidImageId = (recipe: Recipe): Recipe => {
   if (recipe.imageId === undefined || isValidImageId(recipe.imageId)) return recipe;
   const { imageId: _invalid, ...rest } = recipe;
   return rest;
+};
+
+const dropInvalidHealth = (recipe: Recipe): Recipe => {
+  if (recipe.health === undefined) return recipe;
+  const { health, ...rest } = recipe;
+  const valid = parseHealthReview(health);
+  return valid ? { ...rest, health: valid } : rest;
 };
 
 const isTombstone =(t: unknown): t is Tombstone => {

@@ -4,6 +4,7 @@ import type { AsyncStatus, Recipe, RecipeDraft } from '@/types';
 import { deleteRecipe, evaluateRecipeHealth, getRecipe, updateRecipe } from '@/api';
 import { onRecipesChanged } from '@/data/db';
 import { validateDraft } from '@/lib/recipeDraft';
+import { isHealthStale } from '@/lib/health';
 import { usePreviewState } from '@/hooks/usePreviewState';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ButtonAnchor, Button, ButtonLink, Card, Chip, EmptyState, ErrorMessage, Icon, Skeleton, SkeletonText } from '@/components/ui';
@@ -82,6 +83,11 @@ export function RecipeDetailPage() {
       const health = await evaluateRecipeHealth(recipe);
       // 평가하는 동안 동기화로 바뀌었을 수 있어 최신 레시피에 평가만 붙인다
       const latest = (await getRecipe(id)) ?? recipe;
+      if (isHealthStale(health, latest.ingredients)) {
+        setRecipe(latest);
+        setHealthError('평가하는 사이 재료가 바뀌었어요. 다시 평가해 주세요.');
+        return;
+      }
       const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...draft } = latest;
       setRecipe(await updateRecipe(id, { ...draft, health }));
     } catch (e) {
@@ -216,10 +222,10 @@ export function RecipeDetailPage() {
             </ErrorMessage>
           ) : (
             <div className={styles.actions}>
-              <Button variant="secondary" size="sm" icon="edit" onClick={handleEdit}>
+              <Button variant="secondary" size="sm" icon="edit" onClick={handleEdit} disabled={evaluating}>
                 수정
               </Button>
-              <Button variant="danger" size="sm" icon="trash" onClick={handleDelete}>
+              <Button variant="danger" size="sm" icon="trash" onClick={handleDelete} disabled={evaluating}>
                 삭제
               </Button>
             </div>

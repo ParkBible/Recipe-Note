@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { ExtractionResult, RecipeDraft } from '@/types';
 import { useNavigate } from 'react-router-dom';
-import { extractRecipeFromText, extractRecipeFromYoutube, saveRecipe } from '@/api';
+import { evaluateRecipeHealth, extractRecipeFromText, extractRecipeFromYoutube, saveRecipe } from '@/api';
 import { parseYoutubeVideoId } from '@/lib/youtube';
 import { validateDraft } from '@/lib/recipeDraft';
 import { usePreviewState } from '@/hooks/usePreviewState';
@@ -56,6 +56,8 @@ export function AddRecipePage() {
   const [errorMessage, setErrorMessage] = useState<string>();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
+  const [evaluating, setEvaluating] = useState(false);
+  const [healthError, setHealthError] = useState<string>();
   const navigate = useNavigate();
 
   const viewPhase: Phase = preview === 'loading' ? 'extracting' : preview === 'error' ? 'error' : phase;
@@ -119,11 +121,31 @@ export function AddRecipePage() {
     }
   };
 
+  const handleEvaluate = async () => {
+    if (!draft || evaluating) return;
+    if (!draft.ingredients.some((i) => i.name.trim())) {
+      setHealthError('재료를 입력한 뒤 평가해 주세요.');
+      return;
+    }
+    setEvaluating(true);
+    setHealthError(undefined);
+    try {
+      const health = await evaluateRecipeHealth(draft);
+      // 평가하는 동안 고친 다른 칸을 덮지 않도록 최신 입력에 평가만 붙인다
+      setDraft((current) => (current ? { ...current, health } : current));
+    } catch (e) {
+      setHealthError(e instanceof Error ? e.message : '평가하지 못했어요. 다시 시도해 주세요.');
+    } finally {
+      setEvaluating(false);
+    }
+  };
+
   const reset = () => {
     setPhase('input');
     setResult(undefined);
     setDraft(undefined);
     setSaveError(undefined);
+    setHealthError(undefined);
   };
 
   const stepIndex = viewPhase === 'error' ? 1 : STEPPER.findIndex((s) => s.key === viewPhase);
@@ -282,9 +304,14 @@ export function AddRecipePage() {
               </ErrorMessage>
             )}
 
-            {draft.health && (
-              <HealthPanel health={draft.health} ingredients={draft.ingredients} className={styles.previewWarnings} />
-            )}
+            <HealthPanel
+              health={draft.health}
+              ingredients={draft.ingredients}
+              onEvaluate={() => void handleEvaluate()}
+              evaluating={evaluating}
+              error={healthError}
+              className={styles.previewWarnings}
+            />
 
             <div>
               <RecipeEditor value={draft} onChange={setDraft} />

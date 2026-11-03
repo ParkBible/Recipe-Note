@@ -34,7 +34,8 @@ const extractionSchema = z.object({
   ),
   usedSources: z.array(z.enum(['description', 'captions'])).describe('실제로 레시피 근거로 쓴 자료'),
   warnings: z.array(z.string()).describe('사용자가 저장 전에 확인해야 할 점. 한국어 한 문장씩'),
-  health: healthSchema,
+  // 점수가 빠지거나 이상해도 레시피 가져오기는 실패하지 않게 null 을 허용한다
+  health: healthSchema.nullable().describe('레시피가 아니면 null'),
 });
 
 const SYSTEM_PROMPT = `너는 요리 영상의 설명란과 자막에서 레시피를 정리하는 도우미다.

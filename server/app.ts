@@ -33,24 +33,31 @@ app.use('/recommendations/*', requireUser);
 app.use('/health-review', requireUser);
 
 app.post('/health-review', async (c) => {
+  // 칸 하나가 이상해도 요청 전체를 버리지 않도록 칸마다 따로 받아 준다
   const body = z
     .object({
-      title: z.string(),
-      servings: z.number().int().positive().optional(),
-      ingredients: z.array(z.object({ name: z.string(), amount: z.string().optional(), optional: z.boolean().optional() })),
-      steps: z.array(z.string()),
+      title: z.string().catch(''),
+      servings: z.number().int().positive().optional().catch(undefined),
+      ingredients: z
+        .array(
+          z.object({
+            name: z.string().catch(''),
+            amount: z.string().optional().catch(undefined),
+            optional: z.boolean().optional().catch(undefined),
+          }),
+        )
+        .catch([]),
+      steps: z.array(z.string().catch('')).catch([]),
     })
     .catch({ title: '', ingredients: [], steps: [] })
     .parse(await readJson(c));
+  // LLM 비용을 묶기 위해 거절하지 않고 잘라서 쓴다 (재료 80개·각 50자, 단계 60개·각 500자)
   const ingredients = body.ingredients
-    .map((i) => ({ name: i.name.trim(), amount: i.amount?.trim() || undefined, optional: i.optional }))
-    .filter((i) => i.name);
+    .map((i) => ({ name: i.name.trim().slice(0, 50), amount: i.amount?.trim().slice(0, 50) || undefined, optional: i.optional }))
+    .filter((i) => i.name)
+    .slice(0, 80);
   if (!ingredients.length) throw new HttpError(400, '재료가 있어야 평가할 수 있어요.');
-  // LLM 비용을 묶기 위해 입력 크기를 제한한다
-  if (ingredients.length > 80 || body.steps.length > 60 || ingredients.some((i) => i.name.length > 50 || (i.amount?.length ?? 0) > 50)) {
-    throw new HttpError(400, '재료·단계가 너무 많거나 길어요.');
-  }
-  const steps = body.steps.map((s) => s.trim().slice(0, 500)).filter(Boolean);
+  const steps = body.steps.map((s) => s.trim().slice(0, 500)).filter(Boolean).slice(0, 60);
   return c.json(await evaluateHealth({ title: body.title.trim().slice(0, 100), servings: body.servings, ingredients, steps }));
 });
 

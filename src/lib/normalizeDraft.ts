@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { RecipeDraft } from '@/types';
+import { parseHealthReview } from './health';
 
 const optionalText = z.string().trim().optional().transform((v) => v || undefined);
 const optionalPositive = z.number().int().positive().optional().nullable().transform((v) => v ?? undefined);
@@ -28,14 +29,8 @@ const draftSchema = z.object({
     })
     .optional(),
   imageId: optionalText,
-  health: z
-    .object({
-      bloodSugar: z.object({ score: z.number(), reason: z.string() }),
-      diet: z.object({ score: z.number(), reason: z.string() }),
-      basis: z.string(),
-      evaluatedAt: z.string(),
-    })
-    .optional(),
+  // 평가가 깨져 있어도 레시피 저장은 막지 않고 평가만 뗀다
+  health: z.unknown().transform(parseHealthReview),
 });
 
 export const randomId = (bytes: number) => {
