@@ -29,8 +29,9 @@ const draftSchema = z.object({
     })
     .optional(),
   imageId: optionalText,
+  memo: optionalText,
   // 평가가 깨져 있어도 레시피 저장은 막지 않고 평가만 뗀다
-  health: z.unknown().transform(parseHealthReview),
+  health: z.unknown().optional().transform(parseHealthReview),
 });
 
 export const randomId = (bytes: number) => {

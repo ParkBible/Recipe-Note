@@ -66,7 +66,7 @@ export async function downloadSyncFile(): Promise<{ fileId: string; data: SyncFi
     fileId,
     data: {
       version: 1,
-      recipes: Array.isArray(data?.recipes) ? data.recipes.filter(isRecipe).map(dropInvalidImageId).map(dropInvalidHealth) : [],
+      recipes: Array.isArray(data?.recipes) ? data.recipes.filter(isRecipe).map(dropInvalidImageId).map(dropInvalidHealth).map(dropInvalidMemo) : [],
       tombstones: Array.isArray(data?.tombstones) ? data.tombstones.filter(isTombstone) : [],
     },
   };
@@ -99,6 +99,12 @@ const dropInvalidHealth = (recipe: Recipe): Recipe => {
   const { health, ...rest } = recipe;
   const valid = parseHealthReview(health);
   return valid ? { ...rest, health: valid } : rest;
+};
+
+const dropInvalidMemo = (recipe: Recipe): Recipe => {
+  if (recipe.memo === undefined || typeof recipe.memo === "string") return recipe;
+  const { memo: _invalid, ...rest } = recipe;
+  return rest;
 };
 
 const isTombstone =(t: unknown): t is Tombstone => {

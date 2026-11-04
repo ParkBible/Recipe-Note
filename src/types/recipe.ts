@@ -62,6 +62,8 @@ export interface Recipe {
   ingredients: Ingredient[];
   steps: RecipeStep[];
   source?: RecipeSource;
+  /** 사용자가 직접 남긴 메모. 목록 카드 아래쪽에 보인다 */
+  memo?: string;
   /** AI 가 매긴 혈당·다이어트 관점 평가. 재료가 바뀌면 basis 가 달라져 '다시 평가' 대상이 된다 (lib/health.ts) */
   health?: HealthReview;
   /** 직접 올린 대표 사진. 이미지 본문은 IndexedDB images 테이블과 드라이브 별도 파일에 있다 (data/images.ts) */
